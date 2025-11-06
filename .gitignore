@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Firebase
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# iOS
+ios/
+*.xcworkspace
+*.xcuserdata
+Podfile.lock
+
+# Android
+android/
+.gradle/
+local.properties
+*.apk
+*.aab
+
+# Build files
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.pem
+*.key
+
