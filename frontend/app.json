@@ -1,67 +1,68 @@
 {
-  "expo": {
-    "name": "SPONTA",
-    "slug": "sponta",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.sponta.app",
-      "buildNumber": "1",
-      "deploymentTarget": "13.0",
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
-        "NSCameraUsageDescription": "SPONTA needs camera access to let you share photos during challenges.",
-        "NSPhotoLibraryUsageDescription": "SPONTA needs photo library access to let you share photos during challenges.",
-        "NSPhotoLibraryAddUsageDescription": "SPONTA needs permission to save photos you take during challenges.",
-        "UIBackgroundModes": [
-          "location",
-          "fetch",
-          "remote-notification"
-        ],
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLSchemes": [
-              "sponta"
+    "expo": {
+        "name": "SPONTA",
+        "slug": "sponta",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "light",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "assetBundlePatterns": ["**/*"],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.sponta.app",
+            "buildNumber": "1",
+            "deploymentTarget": "13.0",
+            "infoPlist": {
+                "NSLocationWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
+                "NSLocationAlwaysAndWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
+                "NSCameraUsageDescription": "SPONTA needs camera access to let you share photos during challenges.",
+                "NSPhotoLibraryUsageDescription": "SPONTA needs photo library access to let you share photos during challenges.",
+                "NSPhotoLibraryAddUsageDescription": "SPONTA needs permission to save photos you take during challenges.",
+                "UIBackgroundModes": [
+                    "location",
+                    "fetch",
+                    "remote-notification"
+                ],
+                "CFBundleURLTypes": [
+                    {
+                        "CFBundleURLSchemes": ["sponta"]
+                    }
+                ]
+            },
+            "config": {
+                "googleMapsApiKey": "your-google-maps-api-key-here"
+            }
+        },
+        "plugins": [
+            [
+                "expo-location",
+                {
+                    "locationAlwaysAndWhenInUsePermission": "Allow SPONTA to use your location."
+                }
+            ],
+            [
+                "expo-camera",
+                {
+                    "cameraPermission": "Allow SPONTA to access your camera."
+                }
+            ],
+            [
+                "expo-notifications",
+                {
+                    "color": "#ffffff"
+                }
             ]
-          }
-        ]
-      },
-      "config": {
-        "googleMapsApiKey": "your-google-maps-api-key-here"
-      }
-    },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow SPONTA to use your location."
+        ],
+        "scheme": "sponta",
+        "extra": {
+            "eas": {
+                "projectId": "3ca5b263-4e2e-497d-a8de-3c4c544fd719"
+            }
         }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow SPONTA to access your camera."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "color": "#ffffff"
-        }
-      ]
-    ],
-    "scheme": "sponta"
-  }
+    }
 }
-

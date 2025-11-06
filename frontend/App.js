@@ -9,6 +9,7 @@ import PhoneVerificationScreen from './src/screens/onboarding/PhoneVerificationS
 import NameInputScreen from './src/screens/onboarding/NameInputScreen';
 import DateOfBirthScreen from './src/screens/onboarding/DateOfBirthScreen';
 import LocationSelectionScreen from './src/screens/onboarding/LocationSelectionScreen';
+import HomeScreen from './src/screens/mainScreens/HomeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,6 +30,7 @@ export default function App() {
           <Stack.Screen name="NameInput" component={NameInputScreen} />
           <Stack.Screen name="DateOfBirth" component={DateOfBirthScreen} />
           <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} />
+          <Stack.Screen name="Home" component={HomeScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
