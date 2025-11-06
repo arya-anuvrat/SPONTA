@@ -80,17 +80,40 @@ SPONTA/
 
 The project uses a **feature branch workflow** with personal branches:
 
-1. **main** - Working in-progress version (baseline)
+1. **main** - Default branch (working in-progress version, baseline)
 2. **anuvrat** - Anuvrat's personal working branch
 3. **arnav** - Arnav's personal working branch
 4. **sukrit** - Sukrit's personal working branch
 5. **suraj** - Suraj's personal working branch
 
 ### Workflow
-1. Work on your personal branch
-2. Create a Pull Request (PR) when ready
-3. Review and merge to `main` after approval
-4. Always pull latest changes from `main` before starting new work
+1. **Always start from main:**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+2. **Create/switch to your personal branch:**
+   ```bash
+   git checkout anuvrat  # or arnav, sukrit, suraj
+   # If branch doesn't exist locally:
+   git checkout -b anuvrat origin/anuvrat
+   ```
+
+3. **Work on your personal branch:**
+   - Make your changes
+   - Commit frequently with clear messages
+   - Push to your personal branch: `git push origin anuvrat`
+
+4. **When ready to merge:**
+   - Create a Pull Request (PR) from your branch → `main`
+   - Get at least one team member to review
+   - After approval, merge to `main`
+   - Update your personal branch: `git checkout main && git pull && git checkout anuvrat && git merge main`
+
+5. **Before starting new work:**
+   - Always pull latest changes from `main`
+   - Merge `main` into your branch to stay up to date
 
 ---
 
