@@ -304,10 +304,6 @@ This project is private and proprietary.
 
 ---
 
-## 📞 Support
-
-For questions or issues, contact the team or create an issue in the repository.
 
 ---
 
-**Happy Coding! 🎉**

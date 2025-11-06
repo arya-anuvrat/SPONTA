@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -58,17 +57,11 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
           "color": "#ffffff"
         }
       ]
     ],
-    "scheme": "sponta",
-    "extra": {
-      "eas": {
-        "projectId": "your-project-id"
-      }
-    }
+    "scheme": "sponta"
   }
 }
 
