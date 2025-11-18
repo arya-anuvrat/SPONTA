@@ -9,7 +9,7 @@ SPONTA is a mobile application that gamifies spontaneity for college students. I
 ## 👥 Team Members
 
 - **Anuvrat** - Frontend Development
-- - **Suraj** - Frontend Development
+- **Suraj** - Frontend Development
 - **Arnav** - Backend Development
 - **Sukrit** - Backend Development
 
