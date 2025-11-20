@@ -1,16 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const authController = require('../controllers/authController');
+const { authenticateToken } = require('../middleware/auth');
 
-// TODO: Implement authentication routes
-// - POST /signup - User registration
-// - POST /signin - User sign in
-// - POST /verify-phone - Phone number verification
-// - POST /refresh-token - Refresh authentication token
-// - POST /logout - User logout
+/**
+ * @route   POST /api/auth/signup
+ * @desc    Register a new user
+ * @access  Public
+ */
+router.post('/signup', authController.signup);
 
-router.get('/', (req, res) => {
-  res.json({ message: 'Auth routes - To be implemented' });
-});
+/**
+ * @route   POST /api/auth/signin
+ * @desc    Sign in user (requires Firebase ID token)
+ * @access  Private
+ */
+router.post('/signin', authenticateToken, authController.signin);
+
+/**
+ * @route   POST /api/auth/verify-phone
+ * @desc    Verify phone number
+ * @access  Private
+ */
+router.post('/verify-phone', authenticateToken, authController.verifyPhone);
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user info
+ * @access  Private
+ */
+router.get('/me', authenticateToken, authController.getMe);
+
+/**
+ * @route   POST /api/auth/refresh-token
+ * @desc    Refresh authentication token
+ * @access  Private
+ */
+router.post('/refresh-token', authenticateToken, authController.refreshToken);
 
 module.exports = router;
-
