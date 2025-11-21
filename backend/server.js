@@ -27,12 +27,12 @@ app.get('/health', (req, res) => {
 const authRoutes = require('./src/routes/authRoutes');
 const challengeRoutes = require('./src/routes/challengeRoutes');
 // const userRoutes = require('./src/routes/userRoutes');
-// const eventRoutes = require('./src/routes/eventRoutes');
+const eventRoutes = require('./src/routes/eventRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/challenges', challengeRoutes);
 // app.use('/api/users', userRoutes);
-// app.use('/api/events', eventRoutes);
+app.use('/api/events', eventRoutes);
 
 // 404 handler
 app.use((req, res) => {
