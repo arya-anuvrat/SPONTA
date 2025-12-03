@@ -11,7 +11,7 @@ export default function HomeScreen() {
     };
 
     const handleExplore = () => {
-        alert("Explore Challenges (mock)");
+        navigation.navigate("Challenges");
     };
 
     return (
@@ -34,6 +34,7 @@ export default function HomeScreen() {
                     Talk to someone new today — step out of your comfort zone
                     and share one interesting fact about yourself!
                 </Text>
+
                 <TouchableOpacity
                     style={styles.acceptButton}
                     onPress={() => alert("Challenge Accepted! (mock)")}
@@ -42,8 +43,17 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* 🔹 Explore Button at Bottom */}
+            {/* 🔹 BOTTOM BUTTONS */}
             <View style={styles.bottomSection}>
+                {/* My Challenges ABOVE explore */}
+                <TouchableOpacity
+                    style={styles.myChallengesButton}
+                    onPress={() => navigation.navigate("MyChallenges")}
+                >
+                    <Text style={styles.myChallengesText}>My Challenges</Text>
+                </TouchableOpacity>
+
+                {/* Explore Challenges */}
                 <TouchableOpacity
                     style={styles.exploreButton}
                     onPress={handleExplore}
@@ -63,7 +73,7 @@ const styles = StyleSheet.create({
         paddingTop: 60,
     },
 
-    // 🔹 Top Bar
+    // Top Bar
     topBar: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -86,7 +96,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 
-    // 🔹 Daily Challenge Card
+    // Daily Challenge Card
     card: {
         backgroundColor: "#f9f7ff",
         borderRadius: 16,
@@ -122,12 +132,30 @@ const styles = StyleSheet.create({
         fontSize: 15,
     },
 
-    // 🔹 Explore Button at Bottom
+    // BOTTOM BUTTONS SECTION
     bottomSection: {
         flex: 1,
         justifyContent: "flex-end",
         marginBottom: 40,
+        gap: 12,
     },
+
+    // My Challenges
+    myChallengesButton: {
+        backgroundColor: "#f1e9ff",
+        borderRadius: 12,
+        paddingVertical: 15,
+        alignItems: "center",
+        borderColor: "#d6c4ff",
+        borderWidth: 1,
+    },
+    myChallengesText: {
+        color: "#7b3aed",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+
+    // Explore
     exploreButton: {
         backgroundColor: "#7b3aed",
         borderRadius: 12,
