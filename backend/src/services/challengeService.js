@@ -18,6 +18,7 @@ const {
 const { getUserById, updateUserPoints } = require('../models/User');
 const { NotFoundError, ConflictError } = require('../utils/errors');
 const { USER_CHALLENGE_STATUS, POINTS } = require('../utils/constants');
+const { updateStreak } = require('./streakService');
 
 /**
  * Get all challenges with optional filters
@@ -109,6 +110,9 @@ const completeChallenge = async (userId, challengeId, completionData) => {
   // Update user points
   await updateUserPoints(userId, pointsEarned);
   
+  // Update user streak
+  await updateStreak(userId);
+  
   // Increment challenge completion count
   await incrementCompletionCount(challengeId);
   
@@ -150,4 +154,5 @@ module.exports = {
   getUserChallengesList,
   getUserChallengeProgress,
 };
+
 
