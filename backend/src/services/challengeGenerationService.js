@@ -1,11 +1,17 @@
 /**
  * Sponta AI - Challenge Generation Service
- * Uses Google Gemini to generate random, personalized challenges
+ * Hybrid approach: Custom templates + AI enhancement
+ * This is "our" challenge generation system, not just a Gemini wrapper
  */
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { createChallenge } = require("../models/Challenge");
 const { validateChallengeSchema } = require("../models/schemas");
+const {
+  generateFromTemplate,
+  CHALLENGE_TEMPLATES,
+  DIFFICULTY_MULTIPLIERS,
+} = require("./challengeTemplates");
 
 // Gemini client (only if API key is set)
 let genAI = null;
@@ -65,7 +71,8 @@ const DIFFICULTY_LEVELS = {
 };
 
 /**
- * Generate a random challenge using Gemini AI
+ * Generate a random challenge using Hybrid approach (Templates + AI)
+ * This is "our" system - custom templates enhanced with AI
  * 
  * @param {Object} options - Generation options
  * @param {string} options.category - Challenge category (optional, random if not provided)
@@ -82,10 +89,6 @@ async function generateChallenge(options = {}) {
     location = null,
   } = options;
 
-  if (!genAI) {
-    throw new Error("GEMINI_API_KEY is not set. Cannot generate challenges.");
-  }
-
   // Select random category if not provided
   const selectedCategory =
     category ||
@@ -100,123 +103,31 @@ async function generateChallenge(options = {}) {
       Math.floor(Math.random() * Object.keys(DIFFICULTY_LEVELS).length)
     ];
 
-  const categoryInfo = CHALLENGE_CATEGORIES[selectedCategory];
-  const difficultyInfo = DIFFICULTY_LEVELS[selectedDifficulty];
-
-  // Build context for personalization
-  let personalizationContext = "";
-  if (userContext.displayName) {
-    personalizationContext += `User: ${userContext.displayName}. `;
-  }
-  if (userContext.college?.name) {
-    personalizationContext += `College: ${userContext.college.name}. `;
-  }
-  if (location) {
-    personalizationContext += `Location: ${location.city || "Unknown"}, ${location.state || ""}. `;
-  }
-
-  const systemPrompt = `You are Sponta AI, a creative challenge generator for a college student spontaneity app. Generate fun, engaging, and achievable challenges that encourage students to step out of their comfort zones.`;
-
-  const userPrompt = `
-Generate a NEW, UNIQUE challenge for a college student spontaneity app.
-
-CATEGORY: ${selectedCategory}
-Category Description: ${categoryInfo.description}
-Category Examples: ${categoryInfo.examples.join(", ")}
-
-DIFFICULTY: ${selectedDifficulty}
-Difficulty Description: ${difficultyInfo.description}
-Points: ${difficultyInfo.points}
-Duration: ${difficultyInfo.duration} minutes
-
-${personalizationContext ? `USER CONTEXT:\n${personalizationContext}` : ""}
-
-REQUIREMENTS:
-1. The challenge must be specific and actionable
-2. It should be fun and encourage spontaneity
-3. It should be achievable for a college student
-4. Make it unique - don't repeat common challenges
-5. Keep the description concise (1-2 sentences)
-6. Make it engaging and exciting
-
-Return ONLY a JSON object with this exact structure:
-{
-  "title": "Short, catchy challenge title (max 50 characters)",
-  "description": "Clear, engaging description of what the user should do (1-2 sentences)",
-  "category": "${selectedCategory}",
-  "difficulty": "${selectedDifficulty}",
-  "points": ${difficultyInfo.points},
-  "duration": ${difficultyInfo.duration},
-  "requiresPhoto": true or false,
-  "requiresLocation": true or false,
-  "frequency": "daily" or "weekly",
-  "location": {
-    "type": "anywhere" or "specific"
-  }
-}
-
-IMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, no explanations.
-`;
-
+  // Use our hybrid template system
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash", // Fast model for generation
-    });
+    const challengeData = await generateFromTemplate(
+      selectedCategory,
+      selectedDifficulty,
+      userContext,
+      location
+    );
 
-    const result = await model.generateContent(userPrompt);
-    const response = result.response;
-    const text = response.text();
-
-    // Extract JSON from response
-    let parsed;
-    try {
-      // Remove markdown code blocks if present
-      const cleanedText = text
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-
-      // Try to find JSON object
-      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        parsed = JSON.parse(cleanedText);
-      }
-    } catch (err) {
-      console.error("Failed to parse AI JSON response:", text);
-      throw new Error("AI returned invalid JSON format");
-    }
-
-    // Validate and clean the generated challenge
-    const challengeData = {
-      title: parsed.title || "New Challenge",
-      description: parsed.description || "Complete this challenge!",
-      category: parsed.category || selectedCategory,
-      difficulty: parsed.difficulty || selectedDifficulty,
-      points: parsed.points || difficultyInfo.points,
-      duration: parsed.duration || difficultyInfo.duration,
-      requiresPhoto: parsed.requiresPhoto !== undefined ? parsed.requiresPhoto : true,
-      requiresLocation: parsed.requiresLocation !== undefined ? parsed.requiresLocation : false,
-      frequency: parsed.frequency || "daily",
-      location: parsed.location || { type: "anywhere" },
-      isActive: true,
-      isFeatured: false,
-    };
+    // Add metadata
+    challengeData.isActive = true;
+    challengeData.isFeatured = false;
 
     // Validate the challenge data
     try {
       validateChallengeSchema(challengeData);
     } catch (validationError) {
       console.warn("Generated challenge failed validation, using defaults:", validationError.message);
-      // Use defaults if validation fails
       challengeData.category = selectedCategory;
       challengeData.difficulty = selectedDifficulty;
     }
 
     return challengeData;
   } catch (error) {
-    console.error("Error generating challenge with AI:", error);
+    console.error("Error generating challenge with hybrid system:", error);
     throw new Error(`Failed to generate challenge: ${error.message}`);
   }
 }
@@ -282,5 +193,7 @@ module.exports = {
   generateMultipleChallenges,
   CHALLENGE_CATEGORIES,
   DIFFICULTY_LEVELS,
+  // Export template system for future customization
+  challengeTemplates: require("./challengeTemplates"),
 };
 
