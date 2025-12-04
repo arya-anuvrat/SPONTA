@@ -1,13 +1,14 @@
 /**
- * AI + RAG service for verifying challenge photos with GPT-4o
+ * AI + RAG service for verifying challenge photos with Google Gemini
  */
 
-const OpenAI = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// single OpenAI client for the whole backend
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Gemini client (only if API key is set)
+let genAI = null;
+if (process.env.GEMINI_API_KEY) {
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+}
 
 // Simple RAG style knowledge base,
 // you can expand this with more detailed rules per challenge type.
@@ -70,7 +71,42 @@ function pickRagContext(challenge) {
 }
 
 /**
- * Verify a challenge photo with GPT-4o.
+ * Fetch image from URL and convert to base64
+ */
+async function fetchImageAsBase64(imageUrl) {
+  try {
+    // Use Node.js built-in fetch (Node 18+) or dynamic import for node-fetch
+    let fetch;
+    if (typeof globalThis.fetch === 'function') {
+      // Node.js 18+ has built-in fetch
+      fetch = globalThis.fetch;
+    } else {
+      // Fallback to dynamic import for older Node versions
+      const nodeFetch = await import("node-fetch");
+      fetch = nodeFetch.default;
+    }
+    
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    
+    // Convert response to buffer
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    return {
+      data: buffer.toString("base64"),
+      mimeType: response.headers.get("content-type") || "image/jpeg",
+    };
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    throw error;
+  }
+}
+
+/**
+ * Verify a challenge photo with Google Gemini.
  *
  * Input:
  *   challenge: Firestore challenge document (title, description, category...)
@@ -81,8 +117,8 @@ function pickRagContext(challenge) {
  *   { verified: boolean, confidence: number [0,1], reasoning: string }
  */
 async function verifyChallengePhoto({ challenge, photoUrl, location }) {
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn("OPENAI_API_KEY is not set, skipping AI verification.");
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("GEMINI_API_KEY is not set, skipping AI verification.");
     return {
       verified: false,
       confidence: 0,
@@ -95,6 +131,14 @@ async function verifyChallengePhoto({ challenge, photoUrl, location }) {
       verified: false,
       confidence: 0,
       reasoning: "No photo URL was provided.",
+    };
+  }
+
+  if (!genAI) {
+    return {
+      verified: false,
+      confidence: 0,
+      reasoning: "AI verification not available (GEMINI_API_KEY not set).",
     };
   }
 
@@ -138,40 +182,45 @@ Return ONLY a single JSON object with this exact shape:
 `;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: userPrompt },
-            {
-              type: "image_url",
-              image_url: {
-                // Firebase Storage public URL
-                url: photoUrl,
-              },
-            },
-          ],
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 300,
+    // Get the Gemini model
+    // Using gemini-2.5-flash (fast, free tier supported) or gemini-flash-latest
+    // Available models: gemini-2.5-flash, gemini-2.5-pro, gemini-flash-latest, gemini-pro-latest
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash" // Fast model with vision support
     });
 
-    const message = completion.choices[0]?.message?.content || [];
-    const textPart = Array.isArray(message)
-      ? message.find((part) => part.type === "text")
-      : message;
+    // Fetch and convert image to base64
+    const imageData = await fetchImageAsBase64(photoUrl);
 
-    const rawText = textPart?.text || textPart || "";
+    // Generate content with image
+    // Gemini API format: text prompt + image part
+    const result = await model.generateContent([
+      {
+        text: systemPrompt + "\n\n" + userPrompt,
+      },
+      {
+        inlineData: {
+          data: imageData.data,
+          mimeType: imageData.mimeType,
+        },
+      },
+    ]);
 
+    const response = result.response;
+    const text = response.text();
+
+    // Try to extract JSON from the response
     let parsed;
     try {
-      parsed = JSON.parse(rawText);
+      // Look for JSON in the response (might be wrapped in markdown code blocks)
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        parsed = JSON.parse(text);
+      }
     } catch (err) {
-      console.error("Failed to parse AI JSON, raw content:", rawText);
+      console.error("Failed to parse AI JSON, raw content:", text);
       return {
         verified: false,
         confidence: 0,
@@ -189,11 +238,11 @@ Return ONLY a single JSON object with this exact shape:
       reasoning: parsed.reasoning || "No reasoning provided by AI.",
     };
   } catch (err) {
-    console.error("Error calling GPT-4o for photo verification:", err);
+    console.error("Error calling Gemini for photo verification:", err);
     return {
       verified: false,
       confidence: 0,
-      reasoning: "AI verification failed due to an API error.",
+      reasoning: `AI verification failed: ${err.message}`,
     };
   }
 }

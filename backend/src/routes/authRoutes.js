@@ -5,10 +5,18 @@ const { authenticateToken } = require('../middleware/auth');
 
 /**
  * @route   POST /api/auth/signup
- * @desc    Register a new user
+ * @desc    Register a new user (phone or email)
  * @access  Public
  */
 router.post('/signup', authController.signup);
+
+/**
+ * @route   POST /api/auth/signup-email
+ * @desc    Register a new user with email (password set client-side)
+ * @access  Public
+ * @body    { email, displayName, dateOfBirth, location?, college? }
+ */
+router.post('/signup-email', authController.signupWithEmail);
 
 /**
  * @route   POST /api/auth/signin

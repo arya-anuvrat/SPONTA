@@ -6,7 +6,7 @@ const authService = require('../services/authService');
 const { AppError } = require('../utils/errors');
 
 /**
- * Sign up a new user
+ * Sign up a new user (phone or email)
  * POST /api/auth/signup
  */
 const signup = async (req, res, next) => {
@@ -25,6 +25,41 @@ const signup = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'User created successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Sign up with email and password
+ * POST /api/auth/signup-email
+ * Note: Password must be set client-side using Firebase Auth createUserWithEmailAndPassword
+ */
+const signupWithEmail = async (req, res, next) => {
+  try {
+    const { email, displayName, dateOfBirth, location, college } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'ValidationError',
+        message: 'Email is required',
+      });
+    }
+    
+    const result = await authService.signupWithEmail({
+      email,
+      displayName,
+      dateOfBirth,
+      location,
+      college,
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'User account created. Please set password using Firebase Auth client SDK.',
       data: result,
     });
   } catch (error) {
@@ -113,9 +148,11 @@ const refreshToken = async (req, res, next) => {
 
 module.exports = {
   signup,
+  signupWithEmail,
   signin,
   verifyPhone,
   getMe,
   refreshToken,
 };
+
 

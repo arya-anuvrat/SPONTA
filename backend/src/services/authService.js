@@ -3,9 +3,9 @@
  */
 
 const { auth } = require('../config/firebase');
-const { createUser, getUserByPhone, getUserById } = require('../models/User');
+const { createUser, getUserByPhone, getUserById, getUserByEmail } = require('../models/User');
 const { validateUserSchema } = require('../models/schemas');
-const { ConflictError, UnauthorizedError, NotFoundError } = require('../utils/errors');
+const { ConflictError, UnauthorizedError, NotFoundError, ValidationError } = require('../utils/errors');
 
 /**
  * Create a custom token for a user (for testing/development)
@@ -21,30 +21,45 @@ const createCustomToken = async (uid) => {
 };
 
 /**
- * Sign up a new user
+ * Sign up a new user (phone or email)
  */
 const signup = async (userData) => {
   try {
     // Validate user data
     const validatedData = validateUserSchema(userData);
     
-    // Check if user already exists by phone number
-    const existingUser = await getUserByPhone(validatedData.phoneNumber);
-    if (existingUser) {
-      throw new ConflictError('User with this phone number already exists');
+    // Check if user already exists by phone number (if provided)
+    if (validatedData.phoneNumber) {
+      const existingUser = await getUserByPhone(validatedData.phoneNumber);
+      if (existingUser) {
+        throw new ConflictError('User with this phone number already exists');
+      }
     }
     
     // Create user in Firebase Auth
     let firebaseUser;
     try {
-      firebaseUser = await auth.createUser({
-        phoneNumber: validatedData.phoneNumber,
-        email: validatedData.email || undefined,
+      const createUserData = {
         displayName: validatedData.displayName,
-      });
+      };
+      
+      // Add email if provided
+      if (validatedData.email) {
+        createUserData.email = validatedData.email;
+      }
+      
+      // Add phone if provided
+      if (validatedData.phoneNumber) {
+        createUserData.phoneNumber = validatedData.phoneNumber;
+      }
+      
+      firebaseUser = await auth.createUser(createUserData);
     } catch (error) {
       if (error.code === 'auth/phone-number-already-exists') {
         throw new ConflictError('Phone number already registered');
+      }
+      if (error.code === 'auth/email-already-exists') {
+        throw new ConflictError('Email already registered');
       }
       throw new Error(`Failed to create Firebase user: ${error.message}`);
     }
@@ -58,6 +73,55 @@ const signup = async (userData) => {
     };
   } catch (error) {
     // If Firestore creation fails, clean up Firebase Auth user
+    if (error.name === 'ConflictError' || error.name === 'ValidationError') {
+      throw error;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Sign up with email and password
+ * Note: Password must be set client-side using Firebase Auth
+ * This endpoint creates the user account, client sets password
+ */
+const signupWithEmail = async (userData) => {
+  try {
+    // Validate that email is provided
+    if (!userData.email) {
+      throw new ValidationError('Email is required for email signup');
+    }
+    
+    // Validate user data
+    const validatedData = validateUserSchema(userData);
+    
+    // Check if email already exists (we'll check via Firebase Auth)
+    
+    // Create user in Firebase Auth (without password - password set client-side)
+    let firebaseUser;
+    try {
+      firebaseUser = await auth.createUser({
+        email: validatedData.email,
+        emailVerified: false,
+        displayName: validatedData.displayName,
+        disabled: false,
+      });
+    } catch (error) {
+      if (error.code === 'auth/email-already-exists') {
+        throw new ConflictError('Email already registered');
+      }
+      throw new Error(`Failed to create Firebase user: ${error.message}`);
+    }
+    
+    // Create user document in Firestore
+    const userDoc = await createUser(firebaseUser.uid, validatedData);
+    
+    return {
+      uid: firebaseUser.uid,
+      user: userDoc,
+      message: 'User created. Please set password using Firebase Auth client SDK.',
+    };
+  } catch (error) {
     if (error.name === 'ConflictError' || error.name === 'ValidationError') {
       throw error;
     }
@@ -146,9 +210,11 @@ const getUserByUid = async (uid) => {
 
 module.exports = {
   signup,
+  signupWithEmail,
   signin,
   verifyPhone,
   getUserByUid,
   createCustomToken,
 };
+
 
