@@ -19,6 +19,8 @@ const { getUserById, updateUserPoints } = require('../models/User');
 const { NotFoundError, ConflictError } = require('../utils/errors');
 const { USER_CHALLENGE_STATUS, POINTS } = require('../utils/constants');
 const { updateStreak } = require('./streakService');
+const { verifyChallengePhoto } = require("./aiVerificationService");
+
 
 /**
  * Get all challenges with optional filters
@@ -84,44 +86,57 @@ const acceptChallenge = async (userId, challengeId) => {
 const completeChallenge = async (userId, challengeId, completionData) => {
   // Check if challenge exists
   const challenge = await getChallengeById(challengeId);
-  
+
   // Get user challenge relationship
   const userChallenge = await getUserChallenge(userId, challengeId);
   if (!userChallenge) {
     throw new NotFoundError('Challenge not accepted. Please accept the challenge first.');
   }
-  
+
   if (userChallenge.status === USER_CHALLENGE_STATUS.COMPLETED) {
     throw new ConflictError('Challenge already completed');
   }
-  
+
+  // ⭐ NEW: Run AI verification BEFORE completion ⭐
+  const { photoUrl, location } = completionData;
+
+  const aiResult = await verifyChallengePhoto({
+    challenge,
+    photoUrl,
+    location,
+  });
+
   // Calculate points earned
   const pointsEarned = challenge.points || POINTS.CHALLENGE_COMPLETE;
-  
-  // Complete the user challenge
+
+  // ⭐ Use AI verification result in your completion update ⭐
   const completed = await completeUserChallenge(userChallenge.id, {
-    photoUrl: completionData.photoUrl,
-    location: completionData.location,
-    verified: completionData.verified || false,
-    verifiedBy: completionData.verifiedBy || null,
+    photoUrl: photoUrl || null,
+    location: location || null,
+    verified: aiResult.verified,
+    verifiedBy: "AI",
+    aiConfidence: aiResult.confidence,
+    aiReasoning: aiResult.reasoning,
     pointsEarned,
   });
-  
+
   // Update user points
   await updateUserPoints(userId, pointsEarned);
-  
+
   // Update user streak
   await updateStreak(userId);
-  
+
   // Increment challenge completion count
   await incrementCompletionCount(challengeId);
-  
+
   return {
     userChallenge: completed,
     challenge,
     pointsEarned,
+    aiVerification: aiResult, // optional: return to frontend
   };
 };
+
 
 /**
  * Get user's challenges
