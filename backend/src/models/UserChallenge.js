@@ -18,16 +18,21 @@ const createUserChallenge = async (userChallengeData) => {
     status: userChallengeData.status || USER_CHALLENGE_STATUS.ACCEPTED,
     acceptedAt: new Date(),
     completedAt: null,
+
+    // Data for completion
     photoUrl: userChallengeData.photoUrl || null,
     location: userChallengeData.location || null,
+
+    // Verification fields used by AI pipeline
     verified: false,
     verifiedAt: null,
     verifiedBy: null,
+
     pointsEarned: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  
+
   const docRef = await db.collection(COLLECTION_NAME).add(userChallengeDoc);
   return { id: docRef.id, ...userChallengeDoc };
 };
@@ -37,11 +42,11 @@ const createUserChallenge = async (userChallengeData) => {
  */
 const getUserChallengeById = async (userChallengeId) => {
   const doc = await db.collection(COLLECTION_NAME).doc(userChallengeId).get();
-  
+
   if (!doc.exists) {
     throw new NotFoundError('User challenge');
   }
-  
+
   return { id: doc.id, ...doc.data() };
 };
 
@@ -55,11 +60,11 @@ const getUserChallenge = async (userId, challengeId) => {
     .where('challengeId', '==', challengeId)
     .limit(1)
     .get();
-  
+
   if (snapshot.empty) {
     return null;
   }
-  
+
   const doc = snapshot.docs[0];
   return { id: doc.id, ...doc.data() };
 };
@@ -69,11 +74,11 @@ const getUserChallenge = async (userId, challengeId) => {
  */
 const getUserChallenges = async (userId, filters = {}) => {
   let query = db.collection(COLLECTION_NAME).where('userId', '==', userId);
-  
+
   if (filters.status) {
     query = query.where('status', '==', filters.status);
   }
-  
+
   const snapshot = await query.get();
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
@@ -83,52 +88,57 @@ const getUserChallenges = async (userId, filters = {}) => {
  */
 const getChallengeUsers = async (challengeId, filters = {}) => {
   let query = db.collection(COLLECTION_NAME).where('challengeId', '==', challengeId);
-  
+
   if (filters.status) {
     query = query.where('status', '==', filters.status);
   }
-  
+
   const snapshot = await query.get();
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 /**
- * Update user challenge
+ * Update user challenge (generic updates)
  */
 const updateUserChallenge = async (userChallengeId, updateData) => {
   const updateDoc = {
     ...updateData,
     updatedAt: new Date(),
   };
-  
-  // Convert date strings to timestamps
+
+  // Normalize date values coming from controller/UI
   if (updateDoc.completedAt && typeof updateDoc.completedAt === 'string') {
     updateDoc.completedAt = new Date(updateDoc.completedAt);
   }
   if (updateDoc.verifiedAt && typeof updateDoc.verifiedAt === 'string') {
     updateDoc.verifiedAt = new Date(updateDoc.verifiedAt);
   }
-  
+
   await db.collection(COLLECTION_NAME).doc(userChallengeId).update(updateDoc);
   return getUserChallengeById(userChallengeId);
 };
 
 /**
- * Complete a user challenge
+ * Complete a user challenge — now supports AI verification pipeline
  */
 const completeUserChallenge = async (userChallengeId, completionData) => {
   const updateDoc = {
     status: USER_CHALLENGE_STATUS.COMPLETED,
     completedAt: new Date(),
+
+    // Values sent from Challenge Service
     photoUrl: completionData.photoUrl || null,
     location: completionData.location || null,
+
+    // AI verification fields
     verified: completionData.verified || false,
     verifiedAt: completionData.verified ? new Date() : null,
     verifiedBy: completionData.verifiedBy || null,
+
     pointsEarned: completionData.pointsEarned || 0,
     updatedAt: new Date(),
   };
-  
+
   await db.collection(COLLECTION_NAME).doc(userChallengeId).update(updateDoc);
   return getUserChallengeById(userChallengeId);
 };
@@ -142,4 +152,3 @@ module.exports = {
   updateUserChallenge,
   completeUserChallenge,
 };
-
