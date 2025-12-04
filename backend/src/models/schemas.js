@@ -12,8 +12,13 @@ const validateUserSchema = (data, isUpdate = false) => {
   const errors = [];
   
   if (!isUpdate) {
-    // Required for creation
-    validateRequired(data, ['phoneNumber', 'displayName', 'dateOfBirth']);
+    // Required for creation: either phoneNumber OR email must be provided
+    if (!data.phoneNumber && !data.email) {
+      errors.push({ field: 'phoneNumber', message: 'Either phone number or email is required' });
+      errors.push({ field: 'email', message: 'Either phone number or email is required' });
+    }
+    // Display name and date of birth are always required
+    validateRequired(data, ['displayName', 'dateOfBirth']);
   }
   
   // Validate phone number
@@ -183,4 +188,5 @@ module.exports = {
   validateChallengeSchema,
   validateEventSchema,
 };
+
 

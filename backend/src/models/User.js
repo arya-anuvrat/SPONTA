@@ -98,6 +98,24 @@ const getUserByPhone = async (phoneNumber) => {
 };
 
 /**
+ * Get user by email
+ */
+const getUserByEmail = async (email) => {
+  const snapshot = await db
+    .collection(COLLECTION_NAME)
+    .where('email', '==', email)
+    .limit(1)
+    .get();
+  
+  if (snapshot.empty) {
+    return null;
+  }
+  
+  const doc = snapshot.docs[0];
+  return { id: doc.id, ...doc.data() };
+};
+
+/**
  * Get multiple users by UIDs
  */
 const getUsersByIds = async (uids) => {
@@ -161,6 +179,7 @@ module.exports = {
   getUserById,
   updateUser,
   getUserByPhone,
+  getUserByEmail,
   getUsersByIds,
   updateUserPoints,
   updateUserStreak,
