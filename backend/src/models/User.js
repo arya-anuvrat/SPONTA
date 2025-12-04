@@ -14,7 +14,7 @@ const COLLECTION_NAME = 'users';
 const createUser = async (uid, userData) => {
   const userDoc = {
     uid,
-    phoneNumber: userData.phoneNumber,
+    phoneNumber: userData.phoneNumber || null,
     email: userData.email || null,
     displayName: userData.displayName,
     dateOfBirth: userData.dateOfBirth instanceof Date 
