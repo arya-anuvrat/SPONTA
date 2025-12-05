@@ -1,148 +1,124 @@
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// ============================
-// BASE URL (YOUR BACKEND)
-// ============================
-// iOS Simulator + macOS: localhost works.
-// Physical device: replace with your IP.
-const BASE_URL = "http://localhost:3000/api";
-
-// ============================
-// AXIOS INSTANCE
-// ============================
-const api = axios.create({
-    baseURL: BASE_URL,
-    timeout: 15000,
+// ------------------------------
+// 🔧 CONFIG
+// ------------------------------
+const API = axios.create({
+    baseURL: "http://localhost:3000/api",
 });
 
-// ============================
-// TOKEN IN EVERY REQUEST
-// ============================
-api.interceptors.request.use(async (config) => {
-    const token = await AsyncStorage.getItem("authToken");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+// ------------------------------
+// 🔐 Attach Firebase ID Token Automatically
+// ------------------------------
+API.interceptors.request.use(async (config) => {
+    if (global.authToken) {
+        config.headers.Authorization = `Bearer ${global.authToken}`;
+    }
     return config;
 });
 
-// ============================
-// ERROR HANDLING
-// ============================
-api.interceptors.response.use(
-    (res) => res,
-    (err) => {
-        console.log("❌ API Error:", err?.response?.data || err.message);
-        throw err;
-    }
-);
+// ------------------------------
+// 📦 EXPORT ALL ROUTES
+// ------------------------------
+export default {
+    // ==========================================
+    // AUTH ROUTES
+    // ==========================================
 
-// ============================
-// EXPORT ALL BACKEND ROUTES
-// ============================
+    // Backend signup AFTER Firebase signup
+    signup: (data) => API.post("/auth/signup", data),
 
-const wrapper = {
-    // -----------------------------------
-    // AUTH
-    // -----------------------------------
-    signup: (payload) => api.post("/auth/signup", payload),
-    signin: (payload) => api.post("/auth/signin", payload),
-    verifyPhone: (payload) => api.post("/auth/verify-phone", payload),
-    refreshToken: () => api.post("/auth/refresh-token"),
-    logout: () => api.post("/auth/logout"),
-    getCurrentUser: () => api.get("/auth/me"),
+    // Backend signin AFTER Firebase signInWithEmailAndPassword
+    signin: () => API.post("/auth/signin"),
 
-    // -----------------------------------
-    // USERS
-    // -----------------------------------
-    getProfile: () => api.get("/users/profile"),
-    updateProfile: (payload) => api.put("/users/profile", payload),
-    getUserStats: () => api.get("/users/stats"),
+    // Refresh session (if backend supports)
+    refreshToken: () => API.post("/auth/refresh-token"),
 
-    getFriends: () => api.get("/users/friends"),
-    sendFriendRequest: (uid) => api.post("/users/friends/request", { uid }),
-    acceptFriendRequest: (uid) => api.post(`/users/friends/accept/${uid}`),
-    removeFriend: (uid) => api.delete(`/users/friends/${uid}`),
+    logout: () => API.post("/auth/logout"),
 
-    getUserBadges: () => api.get("/users/badges"),
-    getLeaderboard: (params) => api.get("/users/leaderboard", { params }),
+    // ==========================================
+    // USER ROUTES
+    // ==========================================
+    getProfile: () => API.get("/users/profile"),
+    updateProfile: (data) => API.put("/users/profile", data),
 
-    // -----------------------------------
+    getUserStats: () => API.get("/users/stats"),
+    getUserBadges: () => API.get("/users/badges"),
+    getLeaderboard: (params) => API.get("/users/leaderboard", { params }),
+
+    // Friends
+    getFriends: () => API.get("/users/friends"),
+    sendFriendRequest: (uid) => API.post(`/users/friends/request`, { uid }),
+    acceptFriendRequest: (uid) => API.post(`/users/friends/accept/${uid}`),
+    removeFriend: (uid) => API.delete(`/users/friends/${uid}`),
+
+    // ==========================================
     // CHALLENGES
-    // -----------------------------------
-    getAllChallenges: (params) => api.get("/challenges", { params }),
+    // ==========================================
 
-    getChallengeById: (id) => api.get(`/challenges/${id}`),
+    getAllChallenges: (params) => API.get("/challenges", { params }),
 
-    getNearbyChallenges: (lat, lng, radius) =>
-        api.get("/challenges/nearby", {
+    getChallengeById: (id) => API.get(`/challenges/${id}`),
+
+    getNearbyChallenges: (lat, lng, radius = 5000) =>
+        API.get("/challenges/nearby", {
             params: { lat, lng, radius },
         }),
 
-    acceptChallenge: (id) => api.post(`/challenges/${id}/accept`),
+    acceptChallenge: (challengeId) =>
+        API.post(`/challenges/${challengeId}/accept`),
 
-    completeChallenge: (id, payload) =>
-        api.post(`/challenges/${id}/complete`, payload),
+    completeChallenge: (challengeId, data) =>
+        API.post(`/challenges/${challengeId}/complete`, data),
 
-    getChallengeProgress: (id) => api.get(`/challenges/${id}/progress`),
+    getMyChallenges: (status) =>
+        API.get("/challenges/my", { params: { status } }),
 
-    getChallengeCategories: () => api.get("/challenges/categories"),
+    getChallengeProgress: (id) => API.get(`/challenges/${id}/progress`),
 
-    // -----------------------------------
+    getChallengeCategories: () => API.get("/challenges/categories"),
+
+    // ==========================================
     // EVENTS
-    // -----------------------------------
-    getEvents: (params) => api.get("/events", { params }),
+    // ==========================================
 
-    getEventById: (id) => api.get(`/events/${id}`),
+    getEvents: () => API.get("/events"),
 
-    getNearbyEvents: (lat, lng, radius) =>
-        api.get("/events/nearby", { params: { lat, lng, radius } }),
+    getEventById: (id) => API.get(`/events/${id}`),
 
-    createEvent: (payload) => api.post("/events", payload),
+    getNearbyEvents: (lat, lng, radius = 5000) =>
+        API.get("/events/nearby", {
+            params: { lat, lng, radius },
+        }),
 
-    updateEvent: (id, payload) => api.put(`/events/${id}`, payload),
+    createEvent: (data) => API.post("/events", data),
 
-    deleteEvent: (id) => api.delete(`/events/${id}`),
+    updateEvent: (id, data) => API.put(`/events/${id}`, data),
 
-    joinEvent: (id) => api.post(`/events/${id}/join`),
+    deleteEvent: (id) => API.delete(`/events/${id}`),
 
-    leaveEvent: (id) => api.post(`/events/${id}/leave`),
+    joinEvent: (id) => API.post(`/events/${id}/join`),
 
-    getEventParticipants: (id) => api.get(`/events/${id}/participants`),
+    leaveEvent: (id) => API.post(`/events/${id}/leave`),
 
-    // -----------------------------------
-    // SOCIAL
-    // -----------------------------------
-    addReaction: (payload) => api.post("/social/reactions", payload),
+    getEventParticipants: (id) => API.get(`/events/${id}/participants`),
 
-    removeReaction: (id) => api.delete(`/social/reactions/${id}`),
+    // ==========================================
+    // SOCIAL ROUTES
+    // ==========================================
 
-    getFeed: () => api.get("/social/feed"),
+    addReaction: (data) => API.post("/social/reactions", data),
 
-    shareAchievement: (payload) => api.post("/social/share", payload),
+    removeReaction: (reactionId) =>
+        API.delete(`/social/reactions/${reactionId}`),
 
-    // -----------------------------------
-    // PROGRESS / STREAKS
-    // -----------------------------------
-    getDailyProgress: () => api.get("/progress/daily"),
+    getFeed: () => API.get("/social/feed"),
 
-    getProgressHistory: () => api.get("/progress/history"),
+    shareAchievement: (data) => API.post("/social/share", data),
 
-    // -----------------------------------
+    // ==========================================
     // NOTIFICATIONS
-    // -----------------------------------
-    getNotifications: () => api.get("/notifications"),
-
-    markNotificationRead: (id) => api.post(`/notifications/${id}/read`),
-
-    // -----------------------------------
-    // ADMIN
-    // -----------------------------------
-    adminCreateChallenge: (payload) => api.post("/admin/challenges", payload),
-
-    adminUpdateChallenge: (id, payload) =>
-        api.put(`/admin/challenges/${id}`, payload),
-
-    adminDeleteChallenge: (id) => api.delete(`/admin/challenges/${id}`),
+    // ==========================================
+    getNotifications: () => API.get("/notifications"),
+    markNotificationRead: (id) => API.post(`/notifications/${id}/read`),
 };
-
-export default wrapper;

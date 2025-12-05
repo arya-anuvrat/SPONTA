@@ -3,21 +3,18 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     ScrollView,
+    TouchableOpacity,
     ActivityIndicator,
 } from "react-native";
-import api from "../../wrapper/axios_wrapper";
-import { useNavigation } from "@react-navigation/native";
-import BottomBar from "../../components/BottomBar";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "../../components/Header";
+import BottomBar from "../../components/BottomBar";
+import api from "../../wrapper/axios_wrapper";
 
-export default function ChallengeScreen() {
+export default function ChallengeScreen({ navigation }) {
     const [challenges, setChallenges] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    const navigation = useNavigation();
 
     useEffect(() => {
         loadChallenges();
@@ -26,170 +23,106 @@ export default function ChallengeScreen() {
     const loadChallenges = async () => {
         try {
             const res = await api.getAllChallenges();
-            const list = Array.isArray(res.data.data) ? res.data.data : [];
-            setChallenges(list);
+            setChallenges(res.data.data || []);
         } catch (err) {
             console.log("Failed to load challenges", err);
-        } finally {
-            setLoading(false);
         }
+        setLoading(false);
     };
 
-    const DifficultyPill = ({ difficulty }) => {
-        const colors = {
-            easy: "#4CAF50",
-            medium: "#FFC107",
-            hard: "#EF5350",
-        };
-
-        return (
-            <View
-                style={[
-                    styles.difficultyPill,
-                    { backgroundColor: colors[difficulty] + "20" },
-                ]}
-            >
-                <Text
-                    style={[
-                        styles.difficultyText,
-                        { color: colors[difficulty] },
-                    ]}
-                >
-                    {difficulty}
-                </Text>
-            </View>
-        );
+    const difficultyColor = {
+        easy: "#D4F4DD",
+        medium: "#FFE9B0",
+        hard: "#FFB0B0",
     };
 
-    const ChallengeCard = ({ challenge }) => {
-        return (
-            <TouchableOpacity
-                style={styles.card}
-                onPress={() =>
-                    navigation.navigate("ChallengeDetails", { challenge })
-                }
-            >
-                <View style={styles.cardHeader}>
-                    <Text style={styles.title}>{challenge.title}</Text>
-                    <DifficultyPill difficulty={challenge.difficulty} />
-                </View>
-
-                <Text style={styles.category}>{challenge.category}</Text>
-                <Text style={styles.points}>{challenge.points} pts</Text>
-            </TouchableOpacity>
-        );
+    const difficultyTextColor = {
+        easy: "#2E7D32",
+        medium: "#B77F00",
+        hard: "#C62828",
     };
-
-    if (loading) {
-        return (
-            <View style={styles.loading}>
-                <ActivityIndicator size="large" color="#7b3aed" />
-            </View>
-        );
-    }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-            {/* HEADER */}
-            <View style={styles.headerContainer}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Ionicons name="chevron-back" size={28} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Explore Challenges</Text>
-                <View style={{ width: 28 }} />
-            </View>
+        <SafeAreaView style={styles.container}>
+            <Header title="Explore Challenges" />
 
-            <ScrollView style={styles.container}>
-                {challenges.map((c) => (
-                    <ChallengeCard key={c.id} challenge={c} />
-                ))}
-            </ScrollView>
+            {loading ? (
+                <View style={{ marginTop: 50 }}>
+                    <ActivityIndicator size="large" color="#7B3AED" />
+                </View>
+            ) : (
+                <ScrollView style={{ marginTop: 10 }}>
+                    {challenges.map((c) => (
+                        <TouchableOpacity
+                            key={c.id}
+                            style={styles.card}
+                            onPress={() =>
+                                navigation.navigate("ChallengeDetails", {
+                                    challenge: c,
+                                })
+                            }
+                        >
+                            <Text style={styles.title}>{c.title}</Text>
 
-            {/* BOTTOM BAR */}
+                            <View style={styles.row}>
+                                <View
+                                    style={[
+                                        styles.difficultyBadge,
+                                        {
+                                            backgroundColor:
+                                                difficultyColor[c.difficulty],
+                                        },
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.difficultyText,
+                                            {
+                                                color: difficultyTextColor[
+                                                    c.difficulty
+                                                ],
+                                            },
+                                        ]}
+                                    >
+                                        {c.difficulty}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.category}>
+                                    {c.category}
+                                </Text>
+                            </View>
+
+                            <Text style={styles.points}>{c.points} pts</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            )}
+
             <BottomBar />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 20,
-        flex: 1,
-    },
-
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 15,
-        paddingHorizontal: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#eee",
-    },
-
-    headerTitle: {
-        flex: 1,
-        textAlign: "center",
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#222",
-    },
-
+    container: { flex: 1, backgroundColor: "#fff" },
     card: {
         backgroundColor: "#fff",
+        borderRadius: 14,
         padding: 18,
-        borderRadius: 16,
+        marginHorizontal: 20,
         marginBottom: 15,
         borderWidth: 1,
         borderColor: "#eee",
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 2 },
     },
-
-    cardHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-
-    title: {
-        fontSize: 17,
-        fontWeight: "700",
-        color: "#222",
-        flex: 1,
-        paddingRight: 10,
-    },
-
-    category: {
-        fontSize: 14,
-        color: "#777",
-        marginBottom: 6,
-    },
-
-    points: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#7b3aed",
-    },
-
-    difficultyPill: {
-        paddingVertical: 4,
+    title: { fontSize: 18, fontWeight: "700" },
+    row: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
+    difficultyBadge: {
         paddingHorizontal: 10,
+        paddingVertical: 4,
         borderRadius: 12,
     },
-
-    difficultyText: {
-        fontSize: 12,
-        fontWeight: "700",
-        textTransform: "capitalize",
-    },
-
-    loading: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "#fff",
-    },
+    difficultyText: { fontSize: 12, fontWeight: "600" },
+    category: { fontSize: 14, color: "#777" },
+    points: { color: "#7B3AED", fontWeight: "700", marginTop: 6 },
 });
