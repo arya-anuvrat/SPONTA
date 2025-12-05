@@ -5,9 +5,11 @@
 const { getUserById, updateUserStreak } = require('../models/User');
 const { getUserChallenges } = require('../models/UserChallenge');
 const { USER_CHALLENGE_STATUS } = require('../utils/constants');
+const { checkStreakNotifications } = require('./notificationService');
 
 /**
  * Calculate and update user streak
+ * Also sends notifications for streak milestones
  */
 const updateStreak = async (uid) => {
   const user = await getUserById(uid);
@@ -86,6 +88,17 @@ const updateStreak = async (uid) => {
     longestStreak,
     lastActivityDate,
   });
+  
+  // Send streak notifications (milestones, reminders, etc.)
+  // Only send if streak changed or milestone reached
+  if (completedToday && (currentStreak > (user.currentStreak || 0))) {
+    try {
+      await checkStreakNotifications(uid);
+    } catch (error) {
+      console.error('Error sending streak notifications:', error);
+      // Don't fail streak update if notification fails
+    }
+  }
   
   return {
     currentStreak,
