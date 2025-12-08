@@ -16,7 +16,6 @@
             "supportsTablet": true,
             "bundleIdentifier": "com.sponta.app",
             "buildNumber": "1",
-            "deploymentTarget": "13.0",
             "infoPlist": {
                 "NSLocationWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
                 "NSLocationAlwaysAndWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
