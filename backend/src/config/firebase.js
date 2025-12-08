@@ -7,9 +7,11 @@ const admin = require('firebase-admin');
 let serviceAccount;
 try {
   // Option 1: Using service account key file (for development)
-  // serviceAccount = require('../serviceAccountKey.json');
+  serviceAccount = require('../../serviceAccountKey.json');
   
-  // Option 2: Using environment variables (recommended for production)
+  // Option 2: Using environment variables (for production)
+  // Uncomment below and comment out above if using .env file
+  /*
   serviceAccount = {
     type: "service_account",
     project_id: process.env.FIREBASE_PROJECT_ID,
@@ -22,6 +24,7 @@ try {
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
     client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
   };
+  */
 } catch (error) {
   console.error('Firebase Admin SDK initialization error:', error.message);
 }
@@ -30,7 +33,7 @@ if (!admin.apps.length) {
   try {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      storageBucket: serviceAccount.project_id + '.firebasestorage.app',
     });
     console.log('✅ Firebase Admin SDK initialized successfully');
   } catch (error) {

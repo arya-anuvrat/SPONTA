@@ -24,16 +24,17 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
-// TODO: Import and use route files
-// const authRoutes = require('./src/routes/authRoutes');
-// const userRoutes = require('./src/routes/userRoutes');
-// const challengeRoutes = require('./src/routes/challengeRoutes');
-// const eventRoutes = require('./src/routes/eventRoutes');
+const authRoutes = require('./src/routes/authRoutes');
+const challengeRoutes = require('./src/routes/challengeRoutes');
+const userRoutes = require('./src/routes/userRoutes');
+const eventRoutes = require('./src/routes/eventRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
 
-// app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
-// app.use('/api/challenges', challengeRoutes);
-// app.use('/api/events', eventRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/challenges', challengeRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -45,9 +46,26 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+  // Log error for debugging
+  console.error('Error:', err);
+  
+  // Handle custom application errors
+  if (err.isOperational) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.name || 'Error',
+      message: err.message,
+      ...(err.errors && { errors: err.errors }), // Include validation errors if present
+    });
+  }
+  
+  // Handle unexpected errors
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'production' 
+      ? 'An unexpected error occurred' 
+      : err.message,
   });
 });
 
