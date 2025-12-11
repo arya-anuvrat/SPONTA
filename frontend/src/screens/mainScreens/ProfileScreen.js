@@ -292,7 +292,7 @@ export default function ProfileScreen({ navigation }) {
                                 await auth.signOut();
                                 navigation.reset({
                                     index: 0,
-                                    routes: [{ name: "Login" }],
+                                    routes: [{ name: "Landing" }],
                                 });
                             } catch (err) {
                                 console.error("Logout Error:", err);
