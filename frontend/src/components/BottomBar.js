@@ -4,14 +4,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { challengeAPI } from "../services/api";
 
 export default function BottomBar() {
     const nav = useNavigation();
     const { currentUser } = useAuth();
     const { isDarkMode } = useTheme();
 
-    const handleSpontaAI = async () => {
+    const handleSpontaAI = () => {
         if (!currentUser) {
             Alert.alert(
                 "Sign In Required",
@@ -19,54 +18,7 @@ export default function BottomBar() {
             );
             return;
         }
-
-        try {
-            Alert.alert("Sponta AI", "Generate a random challenge?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Generate",
-                    onPress: async () => {
-                        try {
-                            const idToken = await currentUser.getIdToken();
-                            const response = await challengeAPI.generate(
-                                idToken
-                            );
-
-                            if (response.success && response.data) {
-                                Alert.alert(
-                                    "Challenge Generated!",
-                                    response.data.title ||
-                                        response.data.description,
-                                    [
-                                        { text: "OK" },
-                                        {
-                                            text: "View Challenge",
-                                            onPress: () =>
-                                                nav.navigate(
-                                                    "ChallengeDetails",
-                                                    {
-                                                        challengeId:
-                                                            response.data.id ||
-                                                            response.data._id,
-                                                    }
-                                                ),
-                                        },
-                                    ]
-                                );
-                            }
-                        } catch (error) {
-                            console.error("Error generating challenge:", error);
-                            Alert.alert(
-                                "Error",
-                                "Could not generate challenge. Please try again."
-                            );
-                        }
-                    },
-                },
-            ]);
-        } catch (error) {
-            console.error("Error:", error);
-        }
+        nav.navigate("SpontaAI");
     };
 
     const iconColor = isDarkMode ? "#f0f0f0" : "#333";
