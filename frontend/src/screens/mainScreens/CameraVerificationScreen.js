@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -17,25 +17,26 @@ import { useAuth } from "../../context/AuthContext";
 import { challengeAPI } from "../../services/api";
 import { storage } from "../../services/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth } from "../../services/firebase";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function CameraVerificationScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { challenge, fromDaily = false } = route.params || {};
     const { currentUser } = useAuth();
+    const { colors } = useTheme();
+
     const [photo, setPhoto] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [cameraPermission, setCameraPermission] = useState(false);
 
-    // Request camera permission on mount
-    React.useEffect(() => {
+    useEffect(() => {
         const requestPermission = async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            const { status } =
+                await ImagePicker.requestCameraPermissionsAsync();
             setCameraPermission(status === "granted");
             if (status === "granted") {
-                // Auto-open camera
                 handleTakePhoto();
             } else {
                 Alert.alert(
@@ -56,12 +57,10 @@ export default function CameraVerificationScreen() {
                 aspect: [4, 3],
                 quality: 0.8,
             });
-
             if (!result.canceled && result.assets[0]) {
                 setPhoto(result.assets[0].uri);
             }
         } catch (error) {
-            console.error("Error taking photo:", error);
             Alert.alert("Error", "Failed to take photo. Please try again.");
         }
     };
@@ -72,37 +71,25 @@ export default function CameraVerificationScreen() {
     };
 
     const uploadPhoto = async (uri) => {
-        if (!currentUser) {
-            throw new Error("User not authenticated");
-        }
+        const id = currentUser?.uid;
+        if (!id) throw new Error("User not authenticated");
 
-        // Extract challenge ID - handle both direct challenge objects and userChallenge objects
-        const challengeId = challenge.id || 
-                           challenge._id || 
-                           challenge.challengeId || 
-                           challenge.challenge?.id ||
-                           challenge.challenge?._id || 
-                           'unknown';
+        const challengeId =
+            challenge.id ||
+            challenge._id ||
+            challenge.challengeId ||
+            challenge.challenge?.id ||
+            challenge.challenge?._id ||
+            "unknown";
 
-        try {
-            // Convert URI to blob
-            const response = await fetch(uri);
-            const blob = await response.blob();
+        const response = await fetch(uri);
+        const blob = await response.blob();
 
-            // Create a unique filename
-            const filename = `challenge_${challengeId}_${currentUser.uid}_${Date.now()}.jpg`;
-            const storageRef = ref(storage, `challenge-photos/${currentUser.uid}/${filename}`);
+        const filename = `challenge_${challengeId}_${id}_${Date.now()}.jpg`;
+        const storageRef = ref(storage, `challenge-photos/${id}/${filename}`);
 
-            // Upload to Firebase Storage
-            await uploadBytes(storageRef, blob);
-            
-            // Get download URL
-            const downloadURL = await getDownloadURL(storageRef);
-            return downloadURL;
-        } catch (error) {
-            console.error("Error uploading photo:", error);
-            throw new Error("Failed to upload photo");
-        }
+        await uploadBytes(storageRef, blob);
+        return await getDownloadURL(storageRef);
     };
 
     const handleVerify = async () => {
@@ -111,142 +98,78 @@ export default function CameraVerificationScreen() {
             return;
         }
 
-        // Extract challenge ID - handle both direct challenge objects and userChallenge objects
-        // From "Today's Challenge": challenge.id (direct challenge object)
-        // From "My Challenges": challenge.challengeId (userChallenge object with challengeId field)
-        // Priority order:
-        // 1. challenge.challengeId (from userChallenge - this is the actual challenge ID)
-        // 2. challenge.id (direct challenge object)
-        // 3. challenge.challenge?.id (nested challenge object)
-        // 4. Fallback options
-        const challengeId = challenge.challengeId || 
-                           challenge.id || 
-                           challenge._id || 
-                           challenge.challenge?.id ||
-                           challenge.challenge?._id;
+        const challengeId =
+            challenge.challengeId ||
+            challenge.id ||
+            challenge._id ||
+            challenge.challenge?.id ||
+            challenge.challenge?._id;
 
         if (!challengeId) {
-            console.error('Could not extract challenge ID. Challenge object:', JSON.stringify(challenge, null, 2));
-            Alert.alert("Error", "Could not find challenge ID. Please try again.");
+            Alert.alert("Error", "Could not find challenge ID.");
             return;
         }
 
-        if (__DEV__) {
-            console.log('=== Challenge Verification Debug ===');
-            console.log('Challenge ID extracted:', challengeId);
-            console.log('Challenge object keys:', Object.keys(challenge));
-            console.log('challenge.challengeId:', challenge.challengeId);
-            console.log('challenge.id:', challenge.id);
-            console.log('challenge.challenge?.id:', challenge.challenge?.id);
-            console.log('Full challenge object:', JSON.stringify(challenge, null, 2));
-        }
-
         setVerifying(true);
+
         try {
-            // First, accept the challenge if it hasn't been accepted yet
             const idToken = await currentUser.getIdToken();
+
             try {
                 await challengeAPI.accept(idToken, challengeId);
-            } catch (acceptError) {
-                // Challenge might already be accepted, that's okay - only log if it's a different error
-                if (!acceptError.message || !acceptError.message.includes("already accepted")) {
-                    console.warn("Challenge accept error:", acceptError.message);
-                }
-                // Continue with verification even if already accepted
-            }
-            // Get user's current location (optional but helpful for verification)
+            } catch (e) {}
+
             let location = null;
             try {
-                const { status } = await Location.requestForegroundPermissionsAsync();
+                const { status } =
+                    await Location.requestForegroundPermissionsAsync();
                 if (status === "granted") {
-                    const loc = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                    });
-                    location = {
-                        latitude: loc.coords.latitude,
-                        longitude: loc.coords.longitude,
-                    };
+                    const loc = await Location.getCurrentPositionAsync();
+                    location = `${loc.coords.latitude},${loc.coords.longitude}`;
                 }
-            } catch (locError) {
-                console.warn("Could not get location:", locError);
-                // Continue without location
-            }
+            } catch (e) {}
 
-            // Upload photo first
             setUploading(true);
             const photoUrl = await uploadPhoto(photo);
             setUploading(false);
 
-            // Complete challenge with photo and location
             const response = await challengeAPI.complete(idToken, challengeId, {
                 photoUrl,
-                location: location ? `${location.latitude},${location.longitude}` : null,
+                location,
             });
 
-            if (response.success) {
-                const verified = response.data?.aiVerification?.verified || false;
-                
-                if (verified) {
-                    Alert.alert(
-                        "✅ Challenge Verified!",
-                        "Great job! Your challenge has been verified and your streak has been updated.",
-                        [
-                            {
-                                text: "OK",
-                                onPress: () => {
-                                    if (fromDaily) {
-                                        navigation.navigate("Home");
-                                    } else {
-                                        navigation.navigate("MyChallenges");
-                                    }
-                                },
-                            },
-                        ]
-                    );
-                } else {
-                    Alert.alert(
-                        "❌ Couldn't Verify",
-                        response.data?.aiVerification?.reasoning || "We couldn't verify that you completed the challenge. Please try taking another photo.",
-                        [
-                            {
-                                text: "Retake Photo",
-                                onPress: () => {
-                                    setPhoto(null);
-                                    setVerifying(false);
-                                    handleTakePhoto();
-                                },
-                            },
-                            {
-                                text: "Cancel",
-                                style: "cancel",
-                                onPress: () => navigation.goBack(),
-                            },
-                        ]
-                    );
-                }
-            } else {
-                throw new Error(response.message || "Failed to verify challenge");
-            }
-        } catch (error) {
-            console.error("Error verifying challenge:", error);
-            Alert.alert(
-                "Error",
-                error.message || "Failed to verify challenge. Please try again.",
-                [
+            const verified = response.data?.aiVerification?.verified;
+
+            if (verified) {
+                Alert.alert("Challenge Verified!", "", [
                     {
-                        text: "Retry",
+                        text: "OK",
                         onPress: () => {
-                            setPhoto(null);
-                            setVerifying(false);
+                            navigation.navigate(
+                                fromDaily ? "Home" : "MyChallenges"
+                            );
                         },
                     },
-                    {
-                        text: "Cancel",
-                        style: "cancel",
-                        onPress: () => navigation.goBack(),
-                    },
-                ]
-            );
+                ]);
+            } else {
+                Alert.alert(
+                    "Couldn't Verify",
+                    response.data?.aiVerification?.reasoning || "",
+                    [
+                        {
+                            text: "Retake Photo",
+                            onPress: () => {
+                                setPhoto(null);
+                                setVerifying(false);
+                                handleTakePhoto();
+                            },
+                        },
+                        { text: "Cancel", style: "cancel" },
+                    ]
+                );
+            }
+        } catch (e) {
+            Alert.alert("Error", e.message || "Failed to verify challenge.");
         } finally {
             setUploading(false);
             setVerifying(false);
@@ -255,33 +178,78 @@ export default function CameraVerificationScreen() {
 
     if (!cameraPermission && !photo) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView
+                style={[
+                    styles.container,
+                    { backgroundColor: colors.background },
+                ]}
+            >
                 <View style={styles.centerContent}>
-                    <ActivityIndicator size="large" color="#7b3aed" />
-                    <Text style={styles.loadingText}>Requesting camera permission...</Text>
+                    <ActivityIndicator size="large" color={colors.tabActive} />
+                    <Text
+                        style={[
+                            styles.loadingText,
+                            { color: colors.textSecondary },
+                        ]}
+                    >
+                        Requesting camera permission...
+                    </Text>
                 </View>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
+        <SafeAreaView
+            style={[styles.container, { backgroundColor: colors.background }]}
+        >
+            <View
+                style={[
+                    styles.header,
+                    {
+                        backgroundColor: colors.card,
+                        borderBottomColor: colors.border,
+                    },
+                ]}
+            >
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Ionicons name="close" size={28} color="#333" />
+                    <Ionicons
+                        name="close"
+                        size={28}
+                        color={colors.textPrimary}
+                    />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Verify Challenge</Text>
+
+                <Text
+                    style={[styles.headerTitle, { color: colors.textPrimary }]}
+                >
+                    Verify Challenge
+                </Text>
+
                 <View style={{ width: 28 }} />
             </View>
 
             {!photo ? (
                 <View style={styles.centerContent}>
-                    <Ionicons name="camera" size={80} color="#7b3aed" />
-                    <Text style={styles.instructionText}>
+                    <Ionicons
+                        name="camera"
+                        size={80}
+                        color={colors.tabActive}
+                    />
+                    <Text
+                        style={[
+                            styles.instructionText,
+                            { color: colors.textPrimary },
+                        ]}
+                    >
                         Take a photo showing that you completed the challenge
                     </Text>
+
                     <TouchableOpacity
-                        style={styles.cameraButton}
+                        style={[
+                            styles.cameraButton,
+                            { backgroundColor: colors.tabActive },
+                        ]}
                         onPress={handleTakePhoto}
                     >
                         <Text style={styles.cameraButtonText}>Open Camera</Text>
@@ -290,19 +258,40 @@ export default function CameraVerificationScreen() {
             ) : (
                 <View style={styles.photoContainer}>
                     <Image source={{ uri: photo }} style={styles.photo} />
-                    
+
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
-                            style={styles.retakeButton}
+                            style={[
+                                styles.retakeButton,
+                                {
+                                    backgroundColor: colors.card,
+                                    borderColor: colors.tabActive,
+                                },
+                            ]}
                             onPress={handleRetake}
                             disabled={uploading || verifying}
                         >
-                            <Ionicons name="refresh" size={20} color="#7b3aed" />
-                            <Text style={styles.retakeButtonText}>Retake</Text>
+                            <Ionicons
+                                name="refresh"
+                                size={20}
+                                color={colors.tabActive}
+                            />
+                            <Text
+                                style={[
+                                    styles.retakeButtonText,
+                                    { color: colors.tabActive },
+                                ]}
+                            >
+                                Retake
+                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.verifyButton, (uploading || verifying) && styles.buttonDisabled]}
+                            style={[
+                                styles.verifyButton,
+                                { backgroundColor: colors.tabActive },
+                                (uploading || verifying) && { opacity: 0.6 },
+                            ]}
                             onPress={handleVerify}
                             disabled={uploading || verifying}
                         >
@@ -310,8 +299,14 @@ export default function CameraVerificationScreen() {
                                 <ActivityIndicator color="#fff" />
                             ) : (
                                 <>
-                                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                                    <Text style={styles.verifyButtonText}>Go Ahead</Text>
+                                    <Ionicons
+                                        name="checkmark-circle"
+                                        size={20}
+                                        color="#fff"
+                                    />
+                                    <Text style={styles.verifyButtonText}>
+                                        Go Ahead
+                                    </Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -319,8 +314,15 @@ export default function CameraVerificationScreen() {
 
                     {(uploading || verifying) && (
                         <View style={styles.statusContainer}>
-                            <Text style={styles.statusText}>
-                                {uploading ? "Uploading photo..." : "Verifying with AI..."}
+                            <Text
+                                style={[
+                                    styles.statusText,
+                                    { color: colors.textSecondary },
+                                ]}
+                            >
+                                {uploading
+                                    ? "Uploading photo..."
+                                    : "Verifying with AI..."}
                             </Text>
                         </View>
                     )}
@@ -331,10 +333,8 @@ export default function CameraVerificationScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#fff",
-    },
+    container: { flex: 1 },
+
     header: {
         flexDirection: "row",
         alignItems: "center",
@@ -342,33 +342,26 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 15,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
     },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-    },
+    headerTitle: { fontSize: 20, fontWeight: "700" },
+
     centerContent: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
         padding: 30,
     },
-    loadingText: {
-        marginTop: 20,
-        color: "#666",
-        fontSize: 16,
-    },
+    loadingText: { marginTop: 20, fontSize: 16 },
+
     instructionText: {
         fontSize: 18,
-        color: "#333",
         textAlign: "center",
         marginTop: 20,
         marginBottom: 30,
         lineHeight: 24,
     },
+
     cameraButton: {
-        backgroundColor: "#7b3aed",
         paddingVertical: 15,
         paddingHorizontal: 30,
         borderRadius: 12,
@@ -376,45 +369,37 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 10,
     },
-    cameraButtonText: {
-        color: "#fff",
-        fontSize: 18,
-        fontWeight: "700",
-    },
-    photoContainer: {
-        flex: 1,
-        padding: 20,
-    },
+    cameraButtonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+
+    photoContainer: { flex: 1, padding: 20 },
+
     photo: {
         width: "100%",
         height: "60%",
         borderRadius: 12,
-        resizeMode: "cover",
     },
+
     buttonContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
         marginTop: 30,
         gap: 15,
     },
+
     retakeButton: {
         flex: 1,
-        backgroundColor: "#f5f5f5",
-        paddingVertical: 15,
         borderRadius: 12,
+        borderWidth: 1.5,
+        paddingVertical: 15,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         gap: 8,
     },
-    retakeButtonText: {
-        color: "#7b3aed",
-        fontSize: 16,
-        fontWeight: "600",
-    },
+    retakeButtonText: { fontSize: 16, fontWeight: "600" },
+
     verifyButton: {
         flex: 1,
-        backgroundColor: "#7b3aed",
         paddingVertical: 15,
         borderRadius: 12,
         flexDirection: "row",
@@ -427,16 +412,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "700",
     },
-    buttonDisabled: {
-        opacity: 0.6,
-    },
-    statusContainer: {
-        marginTop: 20,
-        alignItems: "center",
-    },
-    statusText: {
-        color: "#666",
-        fontSize: 14,
-    },
-});
 
+    statusContainer: { marginTop: 20, alignItems: "center" },
+    statusText: { fontSize: 14 },
+});

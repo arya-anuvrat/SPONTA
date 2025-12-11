@@ -274,6 +274,56 @@ export default function ProfileScreen({ navigation }) {
                     />
                 </View>
 
+                {/* LOGOUT */}
+                <View style={[styles.card, isDarkMode && styles.cardDark]}>
+                    <Text
+                        style={[
+                            styles.sectionTitle,
+                            isDarkMode && styles.sectionDark,
+                        ]}
+                    >
+                        🏁 End Session
+                    </Text>
+
+                    <TouchableOpacity
+                        style={styles.row}
+                        onPress={async () => {
+                            try {
+                                await auth.signOut();
+                                navigation.reset({
+                                    index: 0,
+                                    routes: [{ name: "Login" }],
+                                });
+                            } catch (err) {
+                                console.error("Logout Error:", err);
+                            }
+                        }}
+                    >
+                        <View style={styles.rowLeft}>
+                            <Ionicons
+                                name="log-out-outline"
+                                size={22}
+                                color={isDarkMode ? "#ff7b7b" : "#d00"}
+                                style={{ marginRight: 12 }}
+                            />
+                            <Text
+                                style={[
+                                    styles.rowText,
+                                    { color: isDarkMode ? "#ff7b7b" : "#d00" },
+                                ]}
+                            >
+                                Logout
+                            </Text>
+                        </View>
+
+                        <Ionicons
+                            name="chevron-forward"
+                            size={20}
+                            color={isDarkMode ? "#aaa" : "#999"}
+                        />
+                    </TouchableOpacity>
+                </View>
+
                 <View style={{ height: 50 }} />
             </ScrollView>
         </SafeAreaView>
