@@ -2,81 +2,129 @@ import React from "react";
 import {
     View,
     Text,
-    TouchableOpacity,
     StyleSheet,
     ScrollView,
+    TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function HelpCenterScreen() {
-    const navigation = useNavigation();
+export default function HelpCenterScreen({ navigation }) {
+    const [darkMode, setDarkMode] = React.useState(false);
+
+    React.useEffect(() => {
+        (async () => {
+            const saved = await AsyncStorage.getItem("darkMode");
+            if (saved !== null) setDarkMode(saved === "true");
+        })();
+    }, []);
+
+    const FAQ = [
+        {
+            q: "How do I reset my password?",
+            a: "Password reset is handled through your login provider.",
+        },
+        {
+            q: "How do challenges work?",
+            a: "You can browse, accept, and complete challenges from the Explore tab.",
+        },
+        {
+            q: "How is my data used?",
+            a: "We only use your data to provide app functionality.",
+        },
+    ];
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.headerRow}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Ionicons name="chevron-back" size={28} color="#111" />
-                    </TouchableOpacity>
-                    <Text style={styles.header}>Help Center</Text>
-                    <View style={{ width: 28 }} />
-                </View>
+        <SafeAreaView
+            style={[
+                styles.container,
+                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+            ]}
+        >
+            {/* HEADER */}
+            <View style={styles.headerRow}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Ionicons
+                        name="chevron-back"
+                        size={28}
+                        color={darkMode ? "#fff" : "#000"}
+                    />
+                </TouchableOpacity>
 
-                <View style={styles.section}>
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>FAQ</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                <Text
+                    style={[
+                        styles.headerText,
+                        { color: darkMode ? "#fff" : "#000" },
+                    ]}
+                >
+                    Help Center
+                </Text>
 
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>Troubleshooting</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                <View style={{ width: 28 }} />
+            </View>
 
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>App Guide</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
-                </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {FAQ.map((item, index) => (
+                    <View
+                        key={index}
+                        style={[styles.card, darkMode && styles.cardDark]}
+                    >
+                        <Text
+                            style={[
+                                styles.question,
+                                { color: darkMode ? "#fff" : "#000" },
+                            ]}
+                        >
+                            {item.q}
+                        </Text>
+
+                        <Text
+                            style={[
+                                styles.answer,
+                                { color: darkMode ? "#ccc" : "#555" },
+                            ]}
+                        >
+                            {item.a}
+                        </Text>
+                    </View>
+                ))}
+
+                <View style={{ height: 40 }} />
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { paddingHorizontal: 25, paddingTop: 10 },
+    container: { flex: 1 },
 
-    headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-    header: { flex: 1, textAlign: "center", fontSize: 24, fontWeight: "800" },
-
-    section: { marginTop: 10 },
-
-    row: {
-        backgroundColor: "#fff",
-        paddingVertical: 16,
-        paddingHorizontal: 15,
-        borderRadius: 14,
+    headerRow: {
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 6,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "#eee",
     },
 
-    rowText: { fontSize: 16, fontWeight: "500", color: "#333" },
+    headerText: { fontSize: 26, fontWeight: "700" },
+
+    card: {
+        backgroundColor: "#fff",
+        marginHorizontal: 20,
+        marginTop: 20,
+        padding: 20,
+        borderRadius: 16,
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+
+    cardDark: { backgroundColor: "#1a1a1a", shadowOpacity: 0 },
+
+    question: { fontSize: 17, fontWeight: "600", marginBottom: 10 },
+
+    answer: { fontSize: 15, lineHeight: 22 },
 });

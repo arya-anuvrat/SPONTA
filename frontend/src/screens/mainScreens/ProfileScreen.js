@@ -1,363 +1,428 @@
-import React from "react";
+// 🌟 BEAUTIFIED + ICON-ENHANCED PROFILE PAGE 🌟
+
+import React, { useEffect, useState } from "react";
 import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     ScrollView,
-    Alert,
+    TouchableOpacity,
+    RefreshControl,
+    Switch,
+    ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { signOut } from "firebase/auth";
+import { userAPI } from "../../services/api";
 import { auth } from "../../services/firebase";
 
-export default function ProfileScreen() {
-    const navigation = useNavigation();
+export default function ProfileScreen({ navigation }) {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [darkMode, setDarkMode] = useState(false);
 
-    const user = {
-        name: "Anuvrat Arya",
-        email: "anuvrat@example.com",
-        streak: 4,
-        challengesCompleted: 27,
-        points: 340,
+    // Load saved dark mode
+    useEffect(() => {
+        (async () => {
+            const saved = await AsyncStorage.getItem("darkMode");
+            if (saved !== null) setDarkMode(saved === "true");
+        })();
+    }, []);
+
+    const loadProfile = async (isRefresh = false) => {
+        try {
+            if (isRefresh) setRefreshing(true);
+            else setLoading(true);
+
+            const token = await auth.currentUser.getIdToken();
+            const response = await userAPI.getProfile(token);
+
+            setUser(response.data);
+        } catch (err) {
+            console.error("Profile Load Error:", err);
+        } finally {
+            setRefreshing(false);
+            setLoading(false);
+        }
     };
 
+    useEffect(() => {
+        loadProfile();
+    }, []);
+
+    const onRefresh = () => loadProfile(true);
+
+    const toggleDarkMode = async () => {
+        const newVal = !darkMode;
+        setDarkMode(newVal);
+        await AsyncStorage.setItem("darkMode", newVal.toString());
+    };
+
+    // Loading state
+    if (loading || !user) {
+        return (
+            <SafeAreaView
+                style={[
+                    styles.container,
+                    { backgroundColor: darkMode ? "#000" : "#fff" },
+                ]}
+            >
+                <View style={{ marginTop: 40 }}>
+                    <ActivityIndicator size="large" color="#7b3aed" />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+        <SafeAreaView
+            style={[
+                styles.container,
+                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+            ]}
+        >
             <ScrollView
-                style={{ flex: 1 }}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.container}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#7b3aed"
+                    />
+                }
             >
                 {/* HEADER */}
                 <View style={styles.headerRow}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Ionicons name="chevron-back" size={28} color="#111" />
+                        <Ionicons
+                            name="chevron-back"
+                            size={28}
+                            color={darkMode ? "#fff" : "#000"}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.header}>Profile</Text>
+
+                    <Text
+                        style={[
+                            styles.headerText,
+                            { color: darkMode ? "#fff" : "#000" },
+                        ]}
+                    >
+                        Profile
+                    </Text>
+
                     <View style={{ width: 28 }} />
                 </View>
 
-                {/* PROFILE HERO CARD */}
-                <View style={styles.heroCard}>
+                {/* PROFILE CARD */}
+                <View
+                    style={[
+                        styles.card,
+                        { marginTop: 20 },
+                        darkMode && styles.cardDark,
+                    ]}
+                >
                     <View style={styles.avatarWrapper}>
-                        <View style={styles.avatarRing} />
+                        <View style={styles.avatarGlow} />
                         <View style={styles.avatar}>
                             <Text style={styles.avatarText}>
-                                {user.name[0]}
+                                {user.displayName
+                                    ? user.displayName[0].toUpperCase()
+                                    : "U"}
                             </Text>
                         </View>
                     </View>
 
-                    <Text style={styles.name}>{user.name}</Text>
-                    <Text style={styles.email}>{user.email}</Text>
+                    <Text
+                        style={[
+                            styles.name,
+                            { color: darkMode ? "#fff" : "#000" },
+                        ]}
+                    >
+                        {user.displayName}
+                    </Text>
 
-                    <View style={styles.streakBadge}>
-                        <Ionicons name="flame" size={18} color="#ff6a00" />
-                        <Text style={styles.streakText}>
-                            {user.streak}-Day Streak
-                        </Text>
+                    <Text
+                        style={[
+                            styles.email,
+                            { color: darkMode ? "#ccc" : "#777" },
+                        ]}
+                    >
+                        {user.email}
+                    </Text>
+
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <Text
+                                style={[
+                                    styles.statValue,
+                                    { color: darkMode ? "#fff" : "#000" },
+                                ]}
+                            >
+                                {user.points ?? 0}
+                            </Text>
+                            <Text
+                                style={[
+                                    styles.statLabel,
+                                    { color: darkMode ? "#aaa" : "#555" },
+                                ]}
+                            >
+                                ⭐ Points
+                            </Text>
+                        </View>
+
+                        <View style={styles.statItem}>
+                            <Text
+                                style={[
+                                    styles.statValue,
+                                    { color: darkMode ? "#fff" : "#000" },
+                                ]}
+                            >
+                                {user.currentStreak ?? 0}
+                            </Text>
+                            <Text
+                                style={[
+                                    styles.statLabel,
+                                    { color: darkMode ? "#aaa" : "#555" },
+                                ]}
+                            >
+                                🔥 Streak
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
-                {/* STATS */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statValue}>
-                            {user.challengesCompleted}
-                        </Text>
-                        <Text style={styles.statLabel}>Completed</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statValue}>{user.points}</Text>
-                        <Text style={styles.statLabel}>Points</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statValue}>{user.streak}</Text>
-                        <Text style={styles.statLabel}>Streak</Text>
-                    </View>
-                </View>
-
-                {/* ACCOUNT SETTINGS */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Account</Text>
-
-                    <TouchableOpacity
-                        style={styles.row}
-                        onPress={() => navigation.navigate("EditProfile")}
+                {/* ACCOUNT OPTIONS */}
+                <View style={[styles.card, darkMode && styles.cardDark]}>
+                    <Text
+                        style={[
+                            styles.sectionTitle,
+                            darkMode && styles.sectionDark,
+                        ]}
                     >
-                        <Text style={styles.rowText}>Edit Profile</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                        👤 Account
+                    </Text>
 
-                    <TouchableOpacity
-                        style={styles.row}
-                        onPress={() => navigation.navigate("Notifications")}
-                    >
-                        <Text style={styles.rowText}>Notifications</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                    <OptionRow
+                        title="Edit Profile"
+                        icon="person-circle-outline"
+                        darkMode={darkMode}
+                        onPress={() =>
+                            navigation.navigate("EditProfile", { user })
+                        }
+                    />
 
-                    <TouchableOpacity
-                        style={styles.row}
+                    <OptionRow
+                        title="Privacy Information"
+                        icon="shield-checkmark-outline"
+                        darkMode={darkMode}
                         onPress={() => navigation.navigate("PrivacySettings")}
+                    />
+                </View>
+
+                {/* APP SETTINGS */}
+                <View style={[styles.card, darkMode && styles.cardDark]}>
+                    <Text
+                        style={[
+                            styles.sectionTitle,
+                            darkMode && styles.sectionDark,
+                        ]}
                     >
-                        <Text style={styles.rowText}>Privacy Settings</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
+                        ⚙️ App Settings
+                    </Text>
+
+                    <View style={styles.rowBetween}>
+                        <View style={styles.rowLeft}>
+                            <Ionicons
+                                name="moon-outline"
+                                size={22}
+                                color={darkMode ? "#b39cff" : "#444"}
+                                style={{ marginRight: 10 }}
+                            />
+                            <Text
+                                style={[
+                                    styles.rowText,
+                                    { color: darkMode ? "#fff" : "#000" },
+                                ]}
+                            >
+                                Dark Mode
+                            </Text>
+                        </View>
+
+                        <Switch
+                            value={darkMode}
+                            onValueChange={toggleDarkMode}
+                            thumbColor={darkMode ? "#7b3aed" : "#ccc"}
+                            trackColor={{ true: "#b197ff", false: "#888" }}
                         />
-                    </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* SUPPORT */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Support</Text>
-
-                    <TouchableOpacity
-                        style={styles.row}
-                        onPress={() => navigation.navigate("HelpCenter")}
+                <View style={[styles.card, darkMode && styles.cardDark]}>
+                    <Text
+                        style={[
+                            styles.sectionTitle,
+                            darkMode && styles.sectionDark,
+                        ]}
                     >
-                        <Text style={styles.rowText}>Help Center</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                        💬 Support
+                    </Text>
 
-                    <TouchableOpacity
-                        style={styles.row}
+                    <OptionRow
+                        title="Contact Us"
+                        icon="mail-outline"
+                        darkMode={darkMode}
                         onPress={() => navigation.navigate("ContactUs")}
-                    >
-                        <Text style={styles.rowText}>Contact Us</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                    />
+
+                    <OptionRow
+                        title="Help Center"
+                        icon="help-circle-outline"
+                        darkMode={darkMode}
+                        onPress={() => navigation.navigate("HelpCenter")}
+                    />
                 </View>
 
-                {/* LOGOUT */}
-                <TouchableOpacity
-                    style={styles.logoutButton}
-                    onPress={async () => {
-                        Alert.alert(
-                            "Log Out",
-                            "Are you sure you want to log out?",
-                            [
-                                {
-                                    text: "Cancel",
-                                    style: "cancel",
-                                },
-                                {
-                                    text: "Log Out",
-                                    style: "destructive",
-                                    onPress: async () => {
-                                        try {
-                                            // Sign out from Firebase
-                                            if (auth && auth.currentUser) {
-                                                await signOut(auth);
-                                                console.log("✅ Signed out from Firebase");
-                                            }
-                                        } catch (error) {
-                                            console.error("Error signing out:", error);
-                                            Alert.alert("Error", "Failed to sign out. Please try again.");
-                                            return;
-                                        }
-                                        // Navigate to landing screen
-                                        navigation.reset({
-                                            index: 0,
-                                            routes: [{ name: "Landing" }],
-                                        });
-                                    },
-                                },
-                            ]
-                        );
-                    }}
-                >
-                    <Text style={styles.logoutText}>Log Out</Text>
-                </TouchableOpacity>
-
-                <View style={{ height: 80 }} />
+                <View style={{ height: 50 }} />
             </ScrollView>
         </SafeAreaView>
     );
 }
 
+// 🔥 Reusable Option Component
+function OptionRow({ title, icon, darkMode, onPress }) {
+    return (
+        <TouchableOpacity style={styles.row} onPress={onPress}>
+            <View style={styles.rowLeft}>
+                <Ionicons
+                    name={icon}
+                    size={22}
+                    color={darkMode ? "#b39cff" : "#444"}
+                    style={{ marginRight: 12 }}
+                />
+                <Text
+                    style={[
+                        styles.rowText,
+                        { color: darkMode ? "#fff" : "#000" },
+                    ]}
+                >
+                    {title}
+                </Text>
+            </View>
+
+            <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={darkMode ? "#aaa" : "#999"}
+            />
+        </TouchableOpacity>
+    );
+}
+
+// 🌟 Styles
 const styles = StyleSheet.create({
-    container: {
-        paddingHorizontal: 25,
-        paddingTop: 10,
-    },
+    container: { flex: 1 },
 
     headerRow: {
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 6,
         flexDirection: "row",
+        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 25,
     },
+    headerText: { fontSize: 32, fontWeight: "700" },
 
-    header: {
-        flex: 1,
-        textAlign: "center",
-        fontSize: 28,
-        fontWeight: "800",
-        color: "#111",
+    card: {
+        backgroundColor: "#fff",
+        marginHorizontal: 20,
+        marginBottom: 18,
+        padding: 20,
+        borderRadius: 18,
+        shadowColor: "#000",
+        shadowOpacity: 0.07,
+        shadowRadius: 12,
+        elevation: 2,
     },
-
-    heroCard: {
-        backgroundColor: "#f5f0ff",
-        borderRadius: 30,
-        paddingVertical: 40,
-        alignItems: "center",
-        marginBottom: 30,
+    cardDark: {
+        backgroundColor: "#1a1a1a",
+        shadowOpacity: 0,
     },
 
     avatarWrapper: {
-        width: 110,
-        height: 110,
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 15,
+        marginBottom: 10,
     },
-
-    avatarRing: {
+    avatarGlow: {
         position: "absolute",
         width: 110,
         height: 110,
-        borderRadius: 55,
-        borderWidth: 4,
-        borderColor: "#7b3aed",
-        opacity: 0.3,
+        borderRadius: 60,
+        backgroundColor: "#7b3aed33",
+        blurRadius: 20,
     },
-
     avatar: {
         width: 90,
         height: 90,
-        borderRadius: 45,
+        borderRadius: 50,
         backgroundColor: "#7b3aed",
         justifyContent: "center",
         alignItems: "center",
     },
-
     avatarText: {
         color: "#fff",
-        fontSize: 36,
-        fontWeight: "800",
+        fontSize: 38,
+        fontWeight: "bold",
     },
 
-    name: {
-        fontSize: 22,
-        fontWeight: "800",
-        marginBottom: 3,
-    },
-
-    email: {
-        fontSize: 15,
-        color: "#666",
-        marginBottom: 15,
-    },
-
-    streakBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#ffe8d9",
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 40,
-    },
-
-    streakText: {
-        marginLeft: 6,
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#d45a00",
-    },
+    name: { fontSize: 22, fontWeight: "700", textAlign: "center" },
+    email: { fontSize: 15, textAlign: "center", marginTop: 4 },
 
     statsRow: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 35,
+        justifyContent: "space-evenly",
+        marginTop: 20,
     },
-
-    statBox: {
-        flex: 1,
-        backgroundColor: "#fafafa",
-        borderRadius: 18,
-        paddingVertical: 18,
-        marginHorizontal: 5,
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#eee",
-    },
-
-    statValue: {
-        fontSize: 22,
-        fontWeight: "800",
-        color: "#7b3aed",
-    },
-
-    statLabel: {
-        fontSize: 14,
-        color: "#666",
-        marginTop: 3,
-    },
-
-    section: {
-        marginBottom: 28,
-    },
+    statItem: { alignItems: "center" },
+    statValue: { fontSize: 24, fontWeight: "700" },
+    statLabel: { fontSize: 13, marginTop: 2 },
 
     sectionTitle: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#777",
-        marginBottom: 12,
-        marginLeft: 4,
-        textTransform: "uppercase",
+        fontSize: 14,
+        fontWeight: "600",
+        marginBottom: 14,
+        opacity: 0.8,
+    },
+    sectionDark: {
+        color: "#ddd",
     },
 
     row: {
-        backgroundColor: "#fff",
+        flexDirection: "row",
+        justifyContent: "space-between",
         paddingVertical: 16,
-        paddingHorizontal: 15,
-        borderRadius: 14,
+        alignItems: "center",
+        borderBottomWidth: 1,
+        borderColor: "rgba(0,0,0,0.06)",
+    },
+
+    rowBetween: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "#eee",
+        paddingVertical: 16,
+    },
+
+    rowLeft: {
+        flexDirection: "row",
+        alignItems: "center",
     },
 
     rowText: {
         fontSize: 16,
         fontWeight: "500",
-        color: "#333",
-    },
-
-    logoutButton: {
-        backgroundColor: "#ffe6e6",
-        paddingVertical: 16,
-        borderRadius: 14,
-        alignItems: "center",
-        marginTop: 10,
-    },
-
-    logoutText: {
-        color: "#d9534f",
-        fontSize: 17,
-        fontWeight: "700",
     },
 });
