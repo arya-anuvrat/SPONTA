@@ -16,7 +16,6 @@
             "supportsTablet": true,
             "bundleIdentifier": "com.sponta.app",
             "buildNumber": "1",
-            "deploymentTarget": "13.0",
             "infoPlist": {
                 "NSLocationWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
                 "NSLocationAlwaysAndWhenInUseUsageDescription": "SPONTA needs your location to show nearby challenges and events.",
@@ -35,7 +34,7 @@
                 ]
             },
             "config": {
-                "googleMapsApiKey": "your-google-maps-api-key-here"
+                "googleMapsApiKey": "AIzaSyDVG5-dn0osOOm94tOvQC7V5BiGKiFgDGI"
             }
         },
         "plugins": [
@@ -56,13 +55,15 @@
                 {
                     "color": "#ffffff"
                 }
+            ],
+            [
+                "react-native-maps",
+                {
+                    "googleMapsApiKey": "AIzaSyDVG5-dn0osOOm94tOvQC7V5BiGKiFgDGI"
+                }
             ]
         ],
-        "scheme": "sponta",
-        "extra": {
-            "eas": {
-                "projectId": "3ca5b263-4e2e-497d-a8de-3c4c544fd719"
-            }
-        }
+        "scheme": "sponta"
     }
 }
+
