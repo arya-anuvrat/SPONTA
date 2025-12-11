@@ -1,12 +1,24 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 export default function DateOfBirthScreen() {
     const navigation = useNavigation();
-    const [date, setDate] = useState(new Date(2005, 0, 1)); // default: 18-ish
+    const route = useRoute();
+    const { email, uid, displayName, firstName, lastName } = route.params || {};
+    // Default date: 18 years ago (so user is 18 by default)
+    const defaultDate = new Date();
+    defaultDate.setFullYear(defaultDate.getFullYear() - 18);
+    const [date, setDate] = useState(defaultDate);
     const [showPicker] = useState(true); // always visible
+
+    // Calculate maximum date (16 years ago - user must be at least 16)
+    const getMaxDate = () => {
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() - 16);
+        return maxDate;
+    };
 
     // Format date nicely: January 20, 2005
     const formatDOB = (d) =>
@@ -16,7 +28,7 @@ export default function DateOfBirthScreen() {
             day: "numeric",
         });
 
-    // Age validation (13+)
+    // Age validation (16+)
     const validateAge = () => {
         const today = new Date();
         let age = today.getFullYear() - date.getFullYear();
@@ -28,19 +40,49 @@ export default function DateOfBirthScreen() {
 
         if (!hadBirthdayThisYear) age -= 1;
 
-        return age >= 13;
+        return age >= 16;
     };
 
     const handleContinue = () => {
-        if (!validateAge()) {
+        // Validate age before allowing continue
+        const ageValid = validateAge();
+        if (!ageValid) {
+            const today = new Date();
+            let age = today.getFullYear() - date.getFullYear();
+            const hadBirthdayThisYear =
+                today.getMonth() > date.getMonth() ||
+                (today.getMonth() === date.getMonth() &&
+                    today.getDate() >= date.getDate());
+            if (!hadBirthdayThisYear) age -= 1;
+
             Alert.alert(
                 "Age Restriction",
-                "You must be at least 13 years old to use Sponta."
+                `You must be at least 16 years old to use Sponta. You are currently ${age} years old. Please select a different date of birth.`,
+                [{ text: "OK" }]
             );
             return;
         }
 
-        navigation.navigate("LocationSelection");
+        // Double-check: ensure date doesn't exceed max date
+        const maxDate = getMaxDate();
+        if (date > maxDate) {
+            Alert.alert(
+                "Invalid Date",
+                "The selected date makes you under 16 years old. Please select a different date.",
+                [{ text: "OK" }]
+            );
+            setDate(maxDate); // Reset to max allowed date
+            return;
+        }
+
+        navigation.navigate("LocationSelection", {
+            email,
+            uid,
+            displayName,
+            firstName,
+            lastName,
+            dateOfBirth: date.toISOString(),
+        });
     };
 
     // Year buttons: <   2005   >
@@ -63,8 +105,17 @@ export default function DateOfBirthScreen() {
                     value={date}
                     mode="date"
                     display="spinner"
+                    maximumDate={getMaxDate()}
                     onChange={(event, selectedDate) => {
-                        if (selectedDate) setDate(selectedDate);
+                        if (selectedDate) {
+                            // Ensure selected date doesn't exceed max date
+                            const maxDate = getMaxDate();
+                            if (selectedDate > maxDate) {
+                                setDate(maxDate);
+                            } else {
+                                setDate(selectedDate);
+                            }
+                        }
                     }}
                     style={{ marginBottom: 20 }}
                 />
@@ -73,13 +124,6 @@ export default function DateOfBirthScreen() {
             {/* Continue */}
             <TouchableOpacity style={styles.button} onPress={handleContinue}>
                 <Text style={styles.buttonText}>Continue</Text>
-            </TouchableOpacity>
-
-            {/* Skip (only during mock mode) */}
-            <TouchableOpacity
-                onPress={() => navigation.navigate("LocationSelection")}
-            >
-                <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
         </View>
     );

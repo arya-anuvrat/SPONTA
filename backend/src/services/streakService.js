@@ -5,9 +5,11 @@
 const { getUserById, updateUserStreak } = require('../models/User');
 const { getUserChallenges } = require('../models/UserChallenge');
 const { USER_CHALLENGE_STATUS } = require('../utils/constants');
+const { checkStreakNotifications } = require('./notificationService');
 
 /**
  * Calculate and update user streak
+ * Also sends notifications for streak milestones
  */
 const updateStreak = async (uid) => {
   const user = await getUserById(uid);
@@ -33,18 +35,22 @@ const updateStreak = async (uid) => {
     return new Date(timestamp);
   };
   
-  // Check if user completed something today
+  // Check if user completed something today (only verified completions count for streak)
   const completedToday = userChallenges.some(uc => {
     if (!uc.completedAt) return false;
+    // Only count verified completions for streak
+    if (uc.verified !== true) return false;
     const completedDate = toDate(uc.completedAt);
     if (!completedDate) return false;
     completedDate.setHours(0, 0, 0, 0);
     return completedDate.getTime() === today.getTime();
   });
   
-  // Check if user completed something yesterday
+  // Check if user completed something yesterday (only verified completions count for streak)
   const completedYesterday = userChallenges.some(uc => {
     if (!uc.completedAt) return false;
+    // Only count verified completions for streak
+    if (uc.verified !== true) return false;
     const completedDate = toDate(uc.completedAt);
     if (!completedDate) return false;
     completedDate.setHours(0, 0, 0, 0);
@@ -86,6 +92,17 @@ const updateStreak = async (uid) => {
     longestStreak,
     lastActivityDate,
   });
+  
+  // Send streak notifications (milestones, reminders, etc.)
+  // Only send if streak changed or milestone reached
+  if (completedToday && (currentStreak > (user.currentStreak || 0))) {
+    try {
+      await checkStreakNotifications(uid);
+    } catch (error) {
+      console.error('Error sending streak notifications:', error);
+      // Don't fail streak update if notification fails
+    }
+  }
   
   return {
     currentStreak,

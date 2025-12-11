@@ -52,7 +52,7 @@ const getNearby = async (latitude, longitude, radius = 5000) => {
 };
 
 /**
- * Accept a challenge
+ * Accept a challenge (idempotent - can be called multiple times safely)
  */
 const acceptChallenge = async (userId, challengeId) => {
   // Check if challenge exists
@@ -61,7 +61,12 @@ const acceptChallenge = async (userId, challengeId) => {
   // Check if user already accepted this challenge
   const existingUserChallenge = await getUserChallenge(userId, challengeId);
   if (existingUserChallenge) {
-    throw new ConflictError('Challenge already accepted');
+    // Challenge already accepted - return existing relationship (idempotent)
+    return {
+      userChallenge: existingUserChallenge,
+      challenge,
+      alreadyAccepted: true,
+    };
   }
   
   // Create user-challenge relationship
@@ -77,6 +82,7 @@ const acceptChallenge = async (userId, challengeId) => {
   return {
     userChallenge,
     challenge,
+    alreadyAccepted: false,
   };
 };
 
@@ -84,17 +90,32 @@ const acceptChallenge = async (userId, challengeId) => {
  * Complete a challenge
  */
 const completeChallenge = async (userId, challengeId, completionData) => {
-  // Check if challenge exists
-  const challenge = await getChallengeById(challengeId);
-
-  // Get user challenge relationship
+  // Get user challenge relationship first (this validates the user has accepted it)
   const userChallenge = await getUserChallenge(userId, challengeId);
   if (!userChallenge) {
     throw new NotFoundError('Challenge not accepted. Please accept the challenge first.');
   }
 
-  if (userChallenge.status === USER_CHALLENGE_STATUS.COMPLETED) {
+  if (userChallenge.status === USER_CHALLENGE_STATUS.COMPLETED && userChallenge.verified === true) {
     throw new ConflictError('Challenge already completed');
+  }
+
+  // Try to get challenge details, but handle gracefully if it doesn't exist
+  // (this can happen with daily challenges or deleted challenges)
+  let challenge;
+  try {
+    challenge = await getChallengeById(challengeId);
+  } catch (error) {
+    // Challenge not found - use userChallenge data or create minimal challenge object
+    console.warn(`Challenge ${challengeId} not found in challenges collection, using userChallenge data`);
+    challenge = {
+      id: challengeId,
+      title: userChallenge.title || userChallenge.challenge?.title || 'Challenge',
+      description: userChallenge.description || userChallenge.challenge?.description || '',
+      points: userChallenge.challenge?.points || POINTS.CHALLENGE_COMPLETE,
+      difficulty: userChallenge.difficulty || userChallenge.challenge?.difficulty || 'medium',
+      category: userChallenge.category || userChallenge.challenge?.category || 'general',
+    };
   }
 
   // ⭐ NEW: Run AI verification BEFORE completion ⭐
@@ -139,10 +160,33 @@ const completeChallenge = async (userId, challengeId, completionData) => {
 
 
 /**
- * Get user's challenges
+ * Get user's challenges with populated challenge details
  */
 const getUserChallengesList = async (userId, filters = {}) => {
-  return await getUserChallenges(userId, filters);
+  const userChallenges = await getUserChallenges(userId, filters);
+  
+  // Populate challenge details for each user challenge
+  const populatedChallenges = await Promise.all(
+    userChallenges.map(async (userChallenge) => {
+      try {
+        const challenge = await getChallengeById(userChallenge.challengeId);
+        return {
+          ...userChallenge,
+          challenge, // Include full challenge details
+          title: challenge.title || challenge.description,
+          difficulty: challenge.difficulty,
+          category: challenge.category,
+          categories: challenge.categories || (challenge.category ? [challenge.category] : []),
+        };
+      } catch (error) {
+        console.error(`Error fetching challenge ${userChallenge.challengeId}:`, error);
+        // Return userChallenge without challenge details if fetch fails
+        return userChallenge;
+      }
+    })
+  );
+  
+  return populatedChallenges;
 };
 
 /**

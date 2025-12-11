@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const challengeController = require('../controllers/challengeController');
+const challengeGenerationController = require('../controllers/challengeGenerationController');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 
 /**
@@ -19,6 +20,29 @@ router.get('/', optionalAuth, challengeController.getAllChallenges);
 router.get('/categories', challengeController.getCategories);
 
 /**
+ * @route   GET /api/challenges/generate/info
+ * @desc    Get challenge generation info (categories, difficulties)
+ * @access  Public
+ */
+router.get('/generate/info', challengeGenerationController.getGenerationInfo);
+
+/**
+ * @route   POST /api/challenges/generate
+ * @desc    Generate a single challenge using AI (Sponta AI)
+ * @access  Public (optional auth for personalization)
+ * @body    { category?, difficulty?, location? }
+ */
+router.post('/generate', optionalAuth, challengeGenerationController.generateChallenge);
+
+/**
+ * @route   POST /api/challenges/generate/batch
+ * @desc    Generate multiple challenges using AI (max 10)
+ * @access  Public (optional auth for personalization)
+ * @body    { count (1-10), category?, difficulty?, location? }
+ */
+router.post('/generate/batch', optionalAuth, challengeGenerationController.generateMultipleChallenges);
+
+/**
  * @route   GET /api/challenges/nearby
  * @desc    Get nearby challenges
  * @access  Public (optional auth)
@@ -35,9 +59,17 @@ router.get('/nearby', optionalAuth, challengeController.getNearbyChallenges);
 router.get('/my', authenticateToken, challengeController.getMyChallenges);
 
 /**
+ * @route   GET /api/challenges/daily
+ * @desc    Get today's daily challenge (cached per day, based on user preferences)
+ * @access  Private
+ */
+router.get('/daily', authenticateToken, challengeController.getDailyChallenge);
+
+/**
  * @route   GET /api/challenges/:id
  * @desc    Get challenge by ID
  * @access  Public (optional auth)
+ * @note    This must come AFTER all specific routes like /daily, /my, etc.
  */
 router.get('/:id', optionalAuth, challengeController.getChallengeById);
 
