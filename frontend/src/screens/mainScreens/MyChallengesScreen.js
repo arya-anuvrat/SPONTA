@@ -34,65 +34,103 @@ export default function MyChallengesScreen() {
 
                 // Fetch user's challenges
                 const response = await challengeAPI.getMyChallenges(idToken);
-                
+
                 if (response.success && response.data) {
                     let challenges = response.data;
-                    
+
                     // If challenge details are missing, fetch them
                     const challengesWithDetails = await Promise.all(
                         challenges.map(async (challenge) => {
                             // If challenge details are already populated, return as is
-                            if (challenge.title || challenge.challenge?.title || challenge.challenge?.description) {
+                            if (
+                                challenge.title ||
+                                challenge.challenge?.title ||
+                                challenge.challenge?.description
+                            ) {
                                 return challenge;
                             }
-                            
+
                             // Otherwise, fetch challenge details
                             try {
-                                const challengeId = challenge.challengeId || challenge.id;
+                                const challengeId =
+                                    challenge.challengeId || challenge.id;
                                 if (challengeId) {
-                                    const challengeDetails = await challengeAPI.getById(idToken, challengeId);
-                                    if (challengeDetails.success && challengeDetails.data) {
+                                    const challengeDetails =
+                                        await challengeAPI.getById(
+                                            idToken,
+                                            challengeId
+                                        );
+                                    if (
+                                        challengeDetails.success &&
+                                        challengeDetails.data
+                                    ) {
                                         return {
                                             ...challenge,
                                             challenge: challengeDetails.data,
-                                            title: challengeDetails.data.title || challengeDetails.data.description,
-                                            difficulty: challengeDetails.data.difficulty,
-                                            category: challengeDetails.data.category,
-                                            categories: challengeDetails.data.categories || (challengeDetails.data.category ? [challengeDetails.data.category] : []),
+                                            title:
+                                                challengeDetails.data.title ||
+                                                challengeDetails.data
+                                                    .description,
+                                            difficulty:
+                                                challengeDetails.data
+                                                    .difficulty,
+                                            category:
+                                                challengeDetails.data.category,
+                                            categories:
+                                                challengeDetails.data
+                                                    .categories ||
+                                                (challengeDetails.data.category
+                                                    ? [
+                                                          challengeDetails.data
+                                                              .category,
+                                                      ]
+                                                    : []),
                                         };
                                     }
                                 }
                             } catch (error) {
-                                console.warn('Error fetching challenge details:', error);
+                                console.warn(
+                                    "Error fetching challenge details:",
+                                    error
+                                );
                             }
-                            
+
                             return challenge;
                         })
                     );
-                    
+
                     challenges = challengesWithDetails;
-                    
+
                     // Separate challenges into categories
                     // Only two categories: Completed (verified) and Incomplete (everything else)
                     const completedList = [];
                     const pendingList = [];
-                    
+
                     challenges.forEach((challenge) => {
                         // Check if challenge is completed AND verified
                         // Both status must be "completed" AND verified must be true (strict check)
-                        const isCompleted = challenge.status === "completed" && challenge.verified === true;
-                        
+                        const isCompleted =
+                            challenge.status === "completed" &&
+                            challenge.verified === true;
+
                         // Debug logging for each challenge
                         if (__DEV__) {
-                            console.log(`Challenge ${challenge.id || challenge.challengeId}:`, {
-                                status: challenge.status,
-                                verified: challenge.verified,
-                                verifiedType: typeof challenge.verified,
-                                isCompleted,
-                                willGoTo: isCompleted ? 'Completed' : 'Incomplete',
-                            });
+                            console.log(
+                                `Challenge ${
+                                    challenge.id || challenge.challengeId
+                                }:`,
+                                {
+                                    status: challenge.status,
+                                    verified: challenge.verified,
+                                    verifiedType: typeof challenge.verified,
+                                    isCompleted,
+                                    willGoTo: isCompleted
+                                        ? "Completed"
+                                        : "Incomplete",
+                                }
+                            );
                         }
-                        
+
                         // Categorize challenges - all non-completed go to incomplete
                         if (isCompleted) {
                             // Completed and verified → Completed tab
@@ -103,13 +141,16 @@ export default function MyChallengesScreen() {
                             pendingList.push(challenge);
                         }
                     });
-                    
+
                     setCompletedChallenges(completedList);
                     setPendingChallenges(pendingList);
                 }
             } catch (error) {
                 console.error("Error fetching challenges:", error);
-                Alert.alert("Error", "Could not load your challenges. Please try again.");
+                Alert.alert(
+                    "Error",
+                    "Could not load your challenges. Please try again."
+                );
             } finally {
                 setLoading(false);
             }
@@ -126,18 +167,22 @@ export default function MyChallengesScreen() {
     };
 
     const toggleCardExpansion = (challengeId) => {
-        setExpandedCards(prev => ({
+        setExpandedCards((prev) => ({
             ...prev,
-            [challengeId]: !prev[challengeId]
+            [challengeId]: !prev[challengeId],
         }));
     };
 
     const getDifficultyColor = (difficulty) => {
         switch (difficulty?.toLowerCase()) {
-            case 'easy': return '#4CAF50';
-            case 'medium': return '#FF9800';
-            case 'hard': return '#F44336';
-            default: return '#666';
+            case "easy":
+                return "#4CAF50";
+            case "medium":
+                return "#FF9800";
+            case "hard":
+                return "#F44336";
+            default:
+                return "#666";
         }
     };
 
@@ -147,11 +192,14 @@ export default function MyChallengesScreen() {
         // A challenge is incomplete if:
         // 1. Status is "accepted" and not verified, OR
         // 2. Status is "completed" but not verified (failed verification)
-        const isIncomplete = (challenge.status === "accepted" || challenge.status === "completed") && !challenge.verified;
-        
+        const isIncomplete =
+            (challenge.status === "accepted" ||
+                challenge.status === "completed") &&
+            !challenge.verified;
+
         // Debug logging to see challenge structure
         if (__DEV__) {
-            console.log('Challenge data:', {
+            console.log("Challenge data:", {
                 id: challengeId,
                 title: challenge.title,
                 challengeTitle: challenge.challenge?.title,
@@ -164,32 +212,36 @@ export default function MyChallengesScreen() {
                 fullChallenge: challenge.challenge,
             });
         }
-        
+
         // Try multiple ways to get challenge data
         // 1. Direct properties (from backend population)
         // 2. Nested challenge object
         // 3. Fallback to description or default
-        const challengeTitle = challenge.title || 
-                              challenge.challenge?.title || 
-                              challenge.challenge?.description ||
-                              challenge.description ||
-                              "Challenge";
-        
-        const challengeDifficulty = challenge.difficulty || 
-                                   challenge.challenge?.difficulty;
-        
+        const challengeTitle =
+            challenge.title ||
+            challenge.challenge?.title ||
+            challenge.challenge?.description ||
+            challenge.description ||
+            "Challenge";
+
+        const challengeDifficulty =
+            challenge.difficulty || challenge.challenge?.difficulty;
+
         // Get categories - try multiple sources
         let challengeCategories = [];
         if (challenge.categories && Array.isArray(challenge.categories)) {
             challengeCategories = challenge.categories;
-        } else if (challenge.challenge?.categories && Array.isArray(challenge.challenge.categories)) {
+        } else if (
+            challenge.challenge?.categories &&
+            Array.isArray(challenge.challenge.categories)
+        ) {
             challengeCategories = challenge.challenge.categories;
         } else if (challenge.category) {
             challengeCategories = [challenge.category];
         } else if (challenge.challenge?.category) {
             challengeCategories = [challenge.challenge.category];
         }
-        
+
         return (
             <View key={challengeId} style={styles.card}>
                 {/* Card Header - Always Visible */}
@@ -199,78 +251,182 @@ export default function MyChallengesScreen() {
                 >
                     <View style={styles.cardHeader}>
                         <View style={styles.cardTitleContainer}>
-                            <Text style={styles.cardTitle} numberOfLines={isExpanded ? 0 : 2}>
+                            <Text
+                                style={styles.cardTitle}
+                                numberOfLines={isExpanded ? 0 : 2}
+                            >
                                 {challengeTitle}
                             </Text>
                             {challengeDifficulty && (
-                                <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(challengeDifficulty) + '20' }]}>
-                                    <Text style={[styles.difficultyText, { color: getDifficultyColor(challengeDifficulty) }]}>
-                                        {challengeDifficulty.charAt(0).toUpperCase() + challengeDifficulty.slice(1)}
+                                <View
+                                    style={[
+                                        styles.difficultyBadge,
+                                        {
+                                            backgroundColor:
+                                                getDifficultyColor(
+                                                    challengeDifficulty
+                                                ) + "20",
+                                        },
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.difficultyText,
+                                            {
+                                                color: getDifficultyColor(
+                                                    challengeDifficulty
+                                                ),
+                                            },
+                                        ]}
+                                    >
+                                        {challengeDifficulty
+                                            .charAt(0)
+                                            .toUpperCase() +
+                                            challengeDifficulty.slice(1)}
                                     </Text>
                                 </View>
                             )}
                         </View>
-                        <Ionicons 
-                            name={isExpanded ? "chevron-up" : "chevron-down"} 
-                            size={20} 
-                            color="#666" 
+                        <Ionicons
+                            name={isExpanded ? "chevron-up" : "chevron-down"}
+                            size={20}
+                            color="#666"
                         />
                     </View>
-                    
+
                     {/* Categories - Always Visible */}
                     {challengeCategories.length > 0 && (
                         <View style={styles.categoriesContainer}>
-                            {challengeCategories.slice(0, isExpanded ? challengeCategories.length : 2).map((cat, index) => (
-                                <View key={index} style={styles.categoryTag}>
-                                    <Text style={styles.categoryText}>{cat}</Text>
-                                </View>
-                            ))}
+                            {challengeCategories
+                                .slice(
+                                    0,
+                                    isExpanded ? challengeCategories.length : 2
+                                )
+                                .map((cat, index) => (
+                                    <View
+                                        key={index}
+                                        style={styles.categoryTag}
+                                    >
+                                        <Text style={styles.categoryText}>
+                                            {cat}
+                                        </Text>
+                                    </View>
+                                ))}
                             {!isExpanded && challengeCategories.length > 2 && (
-                                <Text style={styles.moreCategoriesText}>+{challengeCategories.length - 2} more</Text>
+                                <Text style={styles.moreCategoriesText}>
+                                    +{challengeCategories.length - 2} more
+                                </Text>
                             )}
                         </View>
                     )}
                 </TouchableOpacity>
-                
+
                 {/* Expanded Content */}
                 {isExpanded && (
-                    <View style={styles.expandedContent}>
-                        <View style={styles.statusRow}>
-                            <View style={styles.statusBadge}>
-                                <Text style={[
+                    <View style={styles.expandedSection}>
+                        {/* Separator */}
+                        <View style={styles.separator} />
+
+                        {/* Description */}
+                        {challenge.challenge?.description && (
+                            <Text style={styles.description}>
+                                {challenge.challenge.description}
+                            </Text>
+                        )}
+
+                        {/* STATUS */}
+                        <View style={styles.detailRow}>
+                            <Ionicons
+                                name={
+                                    isIncomplete
+                                        ? "hourglass-outline"
+                                        : "checkmark-circle-outline"
+                                }
+                                size={20}
+                                color={isIncomplete ? "#FF9800" : "#4CAF50"}
+                            />
+                            <Text
+                                style={[
                                     styles.statusText,
-                                    challenge.status === "completed" && challenge.verified && styles.statusCompleted,
-                                    isIncomplete && styles.statusIncomplete,
-                                ]}>
-                                    {challenge.status === "completed" && challenge.verified 
-                                        ? "✅ Completed" 
-                                        : isIncomplete 
-                                        ? "⏳ Incomplete" 
-                                        : challenge.status}
+                                    isIncomplete
+                                        ? styles.statusIncomplete
+                                        : styles.statusCompleted,
+                                ]}
+                            >
+                                {isIncomplete ? "Incomplete" : "Completed"}
+                            </Text>
+                        </View>
+
+                        {/* DIFFICULTY */}
+                        {challengeDifficulty && (
+                            <View style={styles.detailRow}>
+                                <Ionicons
+                                    name="speedometer-outline"
+                                    size={18}
+                                    color="#666"
+                                />
+                                <Text style={styles.detailLabel}>
+                                    Difficulty:{" "}
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.detailValue,
+                                        {
+                                            color: getDifficultyColor(
+                                                challengeDifficulty
+                                            ),
+                                        },
+                                    ]}
+                                >
+                                    {challengeDifficulty}
                                 </Text>
                             </View>
-                            {challenge.pointsEarned > 0 && (
-                                <Text style={styles.cardPoints}>{challenge.pointsEarned} pts</Text>
-                            )}
-                        </View>
-                        
+                        )}
+
+                        {/* CATEGORIES */}
+                        {challengeCategories.length > 0 && (
+                            <View style={styles.detailRow}>
+                                <Ionicons
+                                    name="pricetag-outline"
+                                    size={18}
+                                    color="#666"
+                                />
+                                <Text style={styles.detailLabel}>
+                                    Category:{" "}
+                                </Text>
+                                <Text style={styles.detailValue}>
+                                    {challengeCategories.join(", ")}
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* Verify Button */}
                         {isIncomplete && (
                             <TouchableOpacity
-                                style={styles.verifyButton}
+                                style={styles.verifyBtn}
                                 onPress={() => handleVerifyChallenge(challenge)}
                             >
-                                <Ionicons name="camera" size={18} color="#fff" />
-                                <Text style={styles.verifyButtonText}>Verify</Text>
+                                <Ionicons
+                                    name="camera-outline"
+                                    size={18}
+                                    color="#fff"
+                                />
+                                <Text style={styles.verifyBtnText}>Verify</Text>
                             </TouchableOpacity>
                         )}
                     </View>
                 )}
-                
+
                 {/* Collapsed Footer - Show verify button if incomplete */}
                 {!isExpanded && isIncomplete && (
                     <View style={styles.cardFooter}>
                         <View style={styles.statusBadge}>
-                            <Text style={[styles.statusText, styles.statusIncomplete]}>
+                            <Text
+                                style={[
+                                    styles.statusText,
+                                    styles.statusIncomplete,
+                                ]}
+                            >
                                 ⏳ Incomplete
                             </Text>
                         </View>
@@ -292,7 +448,9 @@ export default function MyChallengesScreen() {
             return (
                 <View style={styles.centerContent}>
                     <ActivityIndicator size="large" color="#7b3aed" />
-                    <Text style={styles.loadingText}>Loading challenges...</Text>
+                    <Text style={styles.loadingText}>
+                        Loading challenges...
+                    </Text>
                 </View>
             );
         }
@@ -332,35 +490,58 @@ export default function MyChallengesScreen() {
             {/* Tabs - Only Completed and Incomplete */}
             <View style={styles.tabs}>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === "completed" && styles.tabActive]}
+                    style={[
+                        styles.tab,
+                        activeTab === "completed" && styles.tabActive,
+                    ]}
                     onPress={() => setActiveTab("completed")}
                 >
-                    <Text style={[styles.tabText, activeTab === "completed" && styles.tabTextActive]}>
+                    <Text
+                        style={[
+                            styles.tabText,
+                            activeTab === "completed" && styles.tabTextActive,
+                        ]}
+                    >
                         Completed
                     </Text>
                     {completedChallenges.length > 0 && (
                         <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{completedChallenges.length}</Text>
+                            <Text style={styles.badgeText}>
+                                {completedChallenges.length}
+                            </Text>
                         </View>
                     )}
                 </TouchableOpacity>
 
-                    <TouchableOpacity
-                    style={[styles.tab, activeTab === "incomplete" && styles.tabActive]}
+                <TouchableOpacity
+                    style={[
+                        styles.tab,
+                        activeTab === "incomplete" && styles.tabActive,
+                    ]}
                     onPress={() => setActiveTab("incomplete")}
                 >
-                    <Text style={[styles.tabText, activeTab === "incomplete" && styles.tabTextActive]}>
+                    <Text
+                        style={[
+                            styles.tabText,
+                            activeTab === "incomplete" && styles.tabTextActive,
+                        ]}
+                    >
                         Incomplete
                     </Text>
                     {pendingChallenges.length > 0 && (
                         <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{pendingChallenges.length}</Text>
+                            <Text style={styles.badgeText}>
+                                {pendingChallenges.length}
+                            </Text>
                         </View>
                     )}
-                    </TouchableOpacity>
+                </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+            >
                 {renderContent()}
             </ScrollView>
 
@@ -508,7 +689,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
-        alignSelf: 'flex-start',
+        alignSelf: "flex-start",
         marginTop: 6,
     },
     difficultyText: {
@@ -562,6 +743,91 @@ const styles = StyleSheet.create({
     verifyButtonText: {
         color: "#fff",
         fontSize: 14,
+        fontWeight: "600",
+    },
+    descriptionText: {
+        fontSize: 14,
+        color: "#444",
+        lineHeight: 20,
+        marginBottom: 14,
+    },
+
+    detailRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+        gap: 6,
+    },
+
+    detailText: {
+        fontSize: 14,
+        color: "#555",
+        flexShrink: 1,
+    },
+    expandedSection: {
+        marginTop: 10,
+        paddingTop: 15,
+    },
+
+    separator: {
+        height: 1,
+        backgroundColor: "#eee",
+        marginBottom: 15,
+    },
+
+    description: {
+        fontSize: 14,
+        color: "#444",
+        lineHeight: 20,
+        marginBottom: 16,
+    },
+
+    detailRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+        gap: 6,
+    },
+
+    detailLabel: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#555",
+    },
+
+    detailValue: {
+        fontSize: 14,
+        color: "#333",
+        flexShrink: 1,
+    },
+
+    statusText: {
+        fontSize: 15,
+        fontWeight: "700",
+    },
+
+    statusCompleted: {
+        color: "#4CAF50",
+    },
+
+    statusIncomplete: {
+        color: "#FF9800",
+    },
+
+    verifyBtn: {
+        backgroundColor: "#7b3aed",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 14,
+        borderRadius: 40,
+        marginTop: 18,
+        gap: 8,
+    },
+
+    verifyBtnText: {
+        color: "#fff",
+        fontSize: 16,
         fontWeight: "600",
     },
 });
