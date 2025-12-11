@@ -21,7 +21,7 @@ import NotificationsScreen from "./src/screens/mainScreens/NotificationScreen";
 import PrivacySettingsScreen from "./src/screens/mainScreens/PrivacySettingScreen";
 import HelpCenterScreen from "./src/screens/mainScreens/HelpCenterScreen";
 import ContactUsScreen from "./src/screens/mainScreens/ContactUsScreen";
-
+ 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
