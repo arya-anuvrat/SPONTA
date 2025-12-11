@@ -8,23 +8,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../context/ThemeContext"; // ✅ use context now
 
 export default function PrivacyInfoScreen({ navigation }) {
-    const [darkMode, setDarkMode] = React.useState(false);
-
-    React.useEffect(() => {
-        (async () => {
-            const saved = await AsyncStorage.getItem("darkMode");
-            if (saved !== null) setDarkMode(saved === "true");
-        })();
-    }, []);
+    const { isDarkMode, colors } = useTheme(); // ✅ pull from theme
 
     return (
         <SafeAreaView
             style={[
                 styles.container,
-                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+                { backgroundColor: isDarkMode ? "#0d0d0d" : "#f2f2f7" },
             ]}
         >
             {/* HEADER */}
@@ -33,14 +26,14 @@ export default function PrivacyInfoScreen({ navigation }) {
                     <Ionicons
                         name="chevron-back"
                         size={28}
-                        color={darkMode ? "#fff" : "#000"}
+                        color={isDarkMode ? "#fff" : "#000"}
                     />
                 </TouchableOpacity>
 
                 <Text
                     style={[
                         styles.headerText,
-                        { color: darkMode ? "#fff" : "#000" },
+                        { color: isDarkMode ? "#fff" : "#000" },
                     ]}
                 >
                     Privacy Information
@@ -50,11 +43,11 @@ export default function PrivacyInfoScreen({ navigation }) {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={[styles.card, darkMode && styles.cardDark]}>
+                <View style={[styles.card, isDarkMode && styles.cardDark]}>
                     <Text
                         style={[
                             styles.title,
-                            { color: darkMode ? "#fff" : "#000" },
+                            { color: isDarkMode ? "#fff" : "#000" },
                         ]}
                     >
                         How We Handle Your Data
@@ -63,7 +56,7 @@ export default function PrivacyInfoScreen({ navigation }) {
                     <Text
                         style={[
                             styles.text,
-                            { color: darkMode ? "#ccc" : "#555" },
+                            { color: isDarkMode ? "#ccc" : "#555" },
                         ]}
                     >
                         • We never sell your personal information.
@@ -72,7 +65,7 @@ export default function PrivacyInfoScreen({ navigation }) {
                     <Text
                         style={[
                             styles.text,
-                            { color: darkMode ? "#ccc" : "#555" },
+                            { color: isDarkMode ? "#ccc" : "#555" },
                         ]}
                     >
                         • Your location is stored securely and only used to
@@ -82,7 +75,7 @@ export default function PrivacyInfoScreen({ navigation }) {
                     <Text
                         style={[
                             styles.text,
-                            { color: darkMode ? "#ccc" : "#555" },
+                            { color: isDarkMode ? "#ccc" : "#555" },
                         ]}
                     >
                         • You can request account deletion anytime.

@@ -1,0 +1,31 @@
+export const LightColors = {
+    background: "#FFFFFF",
+    card: "#FFFFFF",
+    border: "#E5E5E5",
+    textPrimary: "#1A1A1A",
+    textSecondary: "#555555",
+    textMuted: "#888888",
+    tabActive: "#7b3aed",
+    tabInactive: "#666666",
+    badgeBg: "#7b3aed",
+    verifyBtn: "#7b3aed",
+    difficultyEasy: "#4CAF50",
+    difficultyMedium: "#FF9800",
+    difficultyHard: "#F44336",
+};
+
+export const DarkColors = {
+    background: "#0E0E0F",
+    card: "#1A1A1C",
+    border: "#2A2A2C",
+    textPrimary: "#FFFFFF",
+    textSecondary: "#CCCCCC",
+    textMuted: "#999999",
+    tabActive: "#BBA4FF",
+    tabInactive: "#888888",
+    badgeBg: "#BBA4FF",
+    verifyBtn: "#BBA4FF",
+    difficultyEasy: "#81C784",
+    difficultyMedium: "#FFB74D",
+    difficultyHard: "#E57373",
+};
