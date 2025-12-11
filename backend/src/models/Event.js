@@ -13,6 +13,8 @@ const COLLECTION_NAME = 'events';
 const createEvent = async (eventData) => {
   const eventDoc = {
     ...eventData,
+    createdBy: eventData.createdBy || eventData.userId || null,
+    userId: eventData.userId || eventData.createdBy || null,
     participants: eventData.participants || [],
     status: eventData.status || 'upcoming',
     isPublic: eventData.isPublic !== undefined ? eventData.isPublic : true,
@@ -52,7 +54,18 @@ const getEventById = async (eventId) => {
 const getEvents = async (filters = {}) => {
   let query = db.collection(COLLECTION_NAME);
   
-  // Apply filters
+  // Apply filters - but avoid multiple where clauses with orderBy to prevent index requirement
+  // If we have filters, we'll fetch all and filter client-side, then sort
+  const hasFilters = filters.status || filters.isPublic !== undefined || filters.category;
+  
+  if (!hasFilters) {
+    // No filters - can use orderBy directly
+    query = query.orderBy('startTime', 'asc');
+    const snapshot = await query.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+  
+  // Has filters - apply them but don't use orderBy (will sort client-side)
   if (filters.status) {
     query = query.where('status', '==', filters.status);
   }
@@ -65,11 +78,17 @@ const getEvents = async (filters = {}) => {
     query = query.where('category', '==', filters.category);
   }
   
-  // Order by start time
-  query = query.orderBy('startTime', 'asc');
-  
   const snapshot = await query.get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  let events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  
+  // Sort client-side by start time
+  events.sort((a, b) => {
+    const aTime = a.startTime?.toDate?.() || new Date(a.startTime || 0);
+    const bTime = b.startTime?.toDate?.() || new Date(b.startTime || 0);
+    return aTime - bTime;
+  });
+  
+  return events;
 };
 
 /**

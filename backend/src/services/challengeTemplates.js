@@ -329,7 +329,13 @@ Return ONLY valid JSON, no markdown, no explanations.
 `;
 
   try {
-    const result = await model.generateContent(prompt);
+    // Add timeout to prevent hanging (30 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("AI generation timeout after 30 seconds")), 30000);
+    });
+    
+    const generatePromise = model.generateContent(prompt);
+    const result = await Promise.race([generatePromise, timeoutPromise]);
     const text = result.response.text();
     
     // Parse JSON
@@ -347,6 +353,11 @@ Return ONLY valid JSON, no markdown, no explanations.
     };
   } catch (error) {
     console.error("AI enhancement failed, using template:", error.message);
+    if (error.message?.includes("timeout")) {
+      console.error("⚠️ AI generation timed out - check GEMINI_API_KEY and network connection");
+    } else if (error.message?.includes("API_KEY") || error.message?.includes("401") || error.message?.includes("403")) {
+      console.error("⚠️ Invalid or expired GEMINI_API_KEY - check your API key");
+    }
     // Fallback to template
     return {
       title: baseText.substring(0, 50),

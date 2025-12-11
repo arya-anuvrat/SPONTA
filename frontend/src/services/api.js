@@ -75,9 +75,9 @@ const apiRequest = async (endpoint, options = {}) => {
     config.body = JSON.stringify(body);
   }
 
-  // Add timeout to prevent hanging
+  // Add timeout to prevent hanging (increased for AI generation)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for AI calls
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -364,6 +364,14 @@ export const eventAPI = {
   leave: async (token, eventId) => {
     return apiRequest(`/events/${eventId}/leave`, {
       method: 'POST',
+      token,
+    });
+  },
+
+  // GET /api/events/user/:userId - Get events by user (for getting user's own events)
+  getByUserId: async (token, userId) => {
+    return apiRequest(`/events?createdBy=${userId}`, {
+      method: 'GET',
       token,
     });
   },

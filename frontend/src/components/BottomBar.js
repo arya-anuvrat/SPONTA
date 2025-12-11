@@ -67,7 +67,7 @@ export default function BottomBar() {
 
             <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => nav.navigate("Challenges")}
+                onPress={() => nav.navigate("Events")}
             >
                 <Ionicons name="location" size={24} color={iconColor} />
             </TouchableOpacity>

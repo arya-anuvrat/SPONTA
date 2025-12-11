@@ -97,7 +97,9 @@ export default function DailyChallengeScreen() {
             // Fetch today's daily challenge (backend handles caching per day)
             // Use forceRegenerate if forceRefresh is true
             try {
+                console.log("Fetching daily challenge...");
                 const response = await challengeAPI.getDaily(idToken, userTimezone, forceRefresh);
+                console.log("Daily challenge response:", response?.success ? "Success" : "Failed");
                 if (response.success && response.data) {
                     setDailyChallenge(response.data);
                     

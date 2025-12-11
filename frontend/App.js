@@ -35,6 +35,8 @@ import NotificationsScreen from "./src/screens/mainScreens/NotificationScreen";
 import PrivacySettingsScreen from "./src/screens/mainScreens/PrivacySettingScreen";
 import HelpCenterScreen from "./src/screens/mainScreens/HelpCenterScreen";
 import ContactUsScreen from "./src/screens/mainScreens/ContactUsScreen";
+import EventsScreen from "./src/screens/mainScreens/EventsScreen";
+import CreateEventScreen from "./src/screens/mainScreens/CreateEventScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -154,6 +156,14 @@ export default function App() {
                         <Stack.Screen
                             name="Streak"
                             component={StreakScreen}
+                        />
+                        <Stack.Screen
+                            name="Events"
+                            component={EventsScreen}
+                        />
+                        <Stack.Screen
+                            name="CreateEvent"
+                            component={CreateEventScreen}
                         />
                     </Stack.Navigator>
                     </NavigationContainer>

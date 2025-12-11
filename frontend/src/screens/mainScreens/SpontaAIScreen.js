@@ -90,7 +90,15 @@ export default function SpontaAIScreen() {
             }
         } catch (error) {
             console.error("Error generating idea:", error);
-            Alert.alert("Error", "Could not generate idea. Please try again.");
+            let errorMessage = "Could not generate idea. Please try again.";
+            
+            if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+                errorMessage = "Request timed out. The AI is taking too long. Please try again.";
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            Alert.alert("Error", errorMessage);
         } finally {
             setGenerating(false);
         }
@@ -368,7 +376,163 @@ export default function SpontaAIScreen() {
                         </TouchableOpacity>
                     </View>
                 ) : (
-                    <Text>Generated challenge view...</Text>
+                    <View style={styles.challengeContainer}>
+                        <View
+                            style={[
+                                styles.challengeCard,
+                                { backgroundColor: colors.card },
+                            ]}
+                        >
+                            <View style={styles.challengeHeader}>
+                                <Ionicons
+                                    name="sparkles"
+                                    size={24}
+                                    color={colors.tabActive}
+                                />
+                                <Text
+                                    style={[
+                                        styles.challengeLabel,
+                                        { color: colors.tabActive },
+                                    ]}
+                                >
+                                    GENERATED IDEA
+                                </Text>
+                            </View>
+
+                            <Text
+                                style={[
+                                    styles.challengeTitle,
+                                    { color: colors.textPrimary },
+                                ]}
+                            >
+                                {generatedChallenge.title ||
+                                    generatedChallenge.description ||
+                                    "Challenge"}
+                            </Text>
+
+                            {generatedChallenge.description &&
+                                generatedChallenge.title && (
+                                    <Text
+                                        style={[
+                                            styles.challengeDescription,
+                                            { color: colors.textSecondary },
+                                        ]}
+                                    >
+                                        {generatedChallenge.description}
+                                    </Text>
+                                )}
+
+                            <View style={styles.challengeMeta}>
+                                {generatedChallenge.category && (
+                                    <View
+                                        style={[
+                                            styles.metaBadge,
+                                            { backgroundColor: colors.tabActive + "20" },
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.metaText,
+                                                { color: colors.tabActive },
+                                            ]}
+                                        >
+                                            {generatedChallenge.category}
+                                        </Text>
+                                    </View>
+                                )}
+                                {generatedChallenge.difficulty && (
+                                    <View
+                                        style={[
+                                            styles.metaBadge,
+                                            { backgroundColor: colors.tabActive + "20" },
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.metaText,
+                                                { color: colors.tabActive },
+                                            ]}
+                                        >
+                                            {generatedChallenge.difficulty}
+                                        </Text>
+                                    </View>
+                                )}
+                                {generatedChallenge.points && (
+                                    <View
+                                        style={[
+                                            styles.metaBadge,
+                                            { backgroundColor: colors.tabActive + "20" },
+                                        ]}
+                                    >
+                                        <Ionicons
+                                            name="star"
+                                            size={14}
+                                            color={colors.tabActive}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.metaText,
+                                                { color: colors.tabActive },
+                                            ]}
+                                        >
+                                            {generatedChallenge.points} pts
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            <View style={styles.actionButtons}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.actionButton,
+                                        styles.regenerateButton,
+                                        { backgroundColor: colors.card, borderColor: colors.border },
+                                    ]}
+                                    onPress={handleRegenerate}
+                                    disabled={generating}
+                                >
+                                    <Ionicons
+                                        name="refresh"
+                                        size={20}
+                                        color={colors.textPrimary}
+                                    />
+                                    <Text
+                                        style={[
+                                            styles.actionButtonText,
+                                            { color: colors.textPrimary },
+                                        ]}
+                                    >
+                                        Regenerate
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.actionButton,
+                                        styles.acceptButton,
+                                        { backgroundColor: colors.tabActive },
+                                    ]}
+                                    onPress={handleAcceptAsChallenge}
+                                    disabled={completing}
+                                >
+                                    {completing ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <>
+                                            <Ionicons
+                                                name="checkmark-circle"
+                                                size={20}
+                                                color="#fff"
+                                            />
+                                            <Text style={styles.actionButtonText}>
+                                                Accept as Challenge
+                                            </Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
                 )}
             </ScrollView>
 
@@ -449,5 +613,82 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 16,
         fontWeight: "700",
+    },
+    challengeContainer: {
+        flex: 1,
+        paddingTop: 20,
+    },
+    challengeCard: {
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    challengeHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 16,
+    },
+    challengeLabel: {
+        fontSize: 12,
+        fontWeight: "700",
+        letterSpacing: 1,
+    },
+    challengeTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        marginBottom: 12,
+    },
+    challengeDescription: {
+        fontSize: 16,
+        lineHeight: 24,
+        marginBottom: 20,
+    },
+    challengeMeta: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+        marginBottom: 24,
+    },
+    metaBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        gap: 4,
+    },
+    metaText: {
+        fontSize: 12,
+        fontWeight: "600",
+        textTransform: "capitalize",
+    },
+    actionButtons: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    actionButton: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        gap: 8,
+    },
+    regenerateButton: {
+        borderWidth: 2,
+    },
+    acceptButton: {},
+    actionButtonText: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#fff",
     },
 });
