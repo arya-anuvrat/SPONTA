@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -7,18 +7,15 @@ import {
     ScrollView,
     Image,
     Alert,
+    RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import BottomBar from "../../components/BottomBar";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
-import { userAPI } from "../../services/api";
+import { userAPI, postAPI } from "../../services/api";
 import { useTheme } from "../../context/ThemeContext";
-
-const STORAGE_KEY = "@sponta_community_posts";
-
 export default function HomeScreen({ route }) {
     const navigation = useNavigation();
     const { currentUser } = useAuth();
@@ -28,105 +25,118 @@ export default function HomeScreen({ route }) {
     const [localEvents, setLocalEvents] = useState([]);
     const [communityPosts, setCommunityPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    /* Handle new or updated posts */
-    useEffect(() => {
-        if (route.params?.newPost) {
-            setCommunityPosts((prev) => [route.params.newPost, ...prev]);
-            navigation.setParams({ newPost: undefined });
+    // Fetch community posts from backend
+    const fetchCommunityPosts = useCallback(async () => {
+        if (!currentUser) {
+            setCommunityPosts([]);
+            return;
         }
-
-        if (route.params?.updatedPost) {
-            setCommunityPosts((prev) =>
-                prev.map((p) =>
-                    p.id === route.params.updatedPost.id
-                        ? route.params.updatedPost
-                        : p
-                )
-            );
-            navigation.setParams({ updatedPost: undefined });
-        }
-    }, [route.params]);
-
-    /* Load posts from storage */
-    useEffect(() => {
-        const loadPosts = async () => {
-            try {
-                const stored = await AsyncStorage.getItem(STORAGE_KEY);
-                if (stored) {
-                    setCommunityPosts(JSON.parse(stored));
-                } else {
-                    const initial = [
-                        {
-                            id: "1",
-                            username: "jasperskitchen",
-                            userId: "mock_user_1",
-                            userImage: null,
-                            imageUrl: null,
-                            caption: "Just completed my daily challenge! 🎉",
-                            likes: 24,
-                            likedBy: [],
-                            timestamp: new Date().toISOString(),
-                            isSponsored: true,
-                        },
-                    ];
-                    setCommunityPosts(initial);
-                    await AsyncStorage.setItem(
-                        STORAGE_KEY,
-                        JSON.stringify(initial)
-                    );
-                }
-            } catch (e) {
-                console.error("LOAD POSTS ERROR", e);
+        
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await postAPI.getAll(idToken);
+            
+            if (response.success && response.data) {
+                console.log(`✅ Loaded ${response.data.length} community posts from backend`);
+                setCommunityPosts(response.data || []);
+            } else {
+                console.warn("⚠️ Failed to fetch posts - response:", response);
+                setCommunityPosts([]);
             }
-        };
-
-        loadPosts();
-    }, []);
-
-    useEffect(() => {
-        if (communityPosts.length > 0) {
-            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(communityPosts));
+        } catch (error) {
+            console.error("❌ Error fetching community posts:", error);
+            console.error("Error details:", error.message, error.stack);
+            // Set empty array on error so user sees empty state, not stale data
+            setCommunityPosts([]);
         }
-    }, [communityPosts]);
-
-    /* Fetch streak + events */
-    useEffect(() => {
-        const fetchData = async () => {
-            if (!currentUser) return;
-
-            try {
-                setLoading(true);
-                const token = await currentUser.getIdToken();
-
-                const stats = await userAPI.getStats(token);
-                if (stats.success) {
-                    setStreak(stats.data.currentStreak ?? 0);
-                }
-
-                setLocalEvents([
-                    {
-                        id: "1",
-                        title: "Barcelona meet up in August! 🇪🇸",
-                        participantCount: 46,
-                        location: { name: "Spain" },
-                    },
-                    {
-                        id: "2",
-                        title: "Surf and making friends in Brisbane 🇦🇺",
-                        participantCount: 52,
-                        location: { name: "Brisbane" },
-                    },
-                ]);
-            } catch (e) {
-                console.error("FETCH ERROR", e);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
     }, [currentUser]);
+
+    // Handle new post or updated post from CreatePost screen
+    useEffect(() => {
+        if (route.params?.newPost || route.params?.updatedPost) {
+            // Refresh posts from backend after creating/updating
+            fetchCommunityPosts();
+            // Clear the params to avoid re-fetching on re-render
+            navigation.setParams({ newPost: undefined, updatedPost: undefined });
+        }
+    }, [route.params?.newPost, route.params?.updatedPost, navigation, fetchCommunityPosts]);
+
+    // Load posts from backend on mount and when user changes
+    useEffect(() => {
+        fetchCommunityPosts();
+    }, [fetchCommunityPosts]);
+
+    // Refresh posts when screen comes into focus
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (currentUser) {
+                fetchCommunityPosts();
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, currentUser, fetchCommunityPosts]);
+
+    // Fetch all data (stats, events)
+    const fetchData = useCallback(async (isRefresh = false) => {
+        if (!currentUser) return;
+
+        try {
+            if (isRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
+
+            const idToken = await currentUser.getIdToken();
+
+            // Fetch user stats (includes streak)
+            try {
+                const stats = await userAPI.getStats(idToken);
+                if (stats.success && stats.data) {
+                    setStreak(stats.data.currentStreak || 0);
+                }
+            } catch (error) {
+                console.warn("Could not fetch stats:", error);
+            }
+
+            // Mock local events for now
+            setLocalEvents([
+                {
+                    id: "1",
+                    title: "Barcelona meet up in august! 🇪🇸",
+                    imageUrl: null, // Can add image URL later
+                    participantCount: 46,
+                    location: { name: "Spain" },
+                },
+                {
+                    id: "2",
+                    title: "Surf and making friends in Brisbane 🇦🇺",
+                    imageUrl: null, // Can add image URL later
+                    participantCount: 52,
+                    location: { name: "Brisbane" },
+                },
+            ]);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [currentUser]);
+
+    // Initial data fetch
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // Pull to refresh handler - refreshes all data
+    const onRefresh = useCallback(() => {
+        fetchData(true);
+        fetchCommunityPosts();
+    }, [fetchData, fetchCommunityPosts]);
 
     return (
         <SafeAreaView
@@ -135,6 +145,14 @@ export default function HomeScreen({ route }) {
             <ScrollView
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#7b3aed"
+                        colors={["#7b3aed"]}
+                    />
+                }
             >
                 {/* HEADER */}
                 <View style={styles.headerRow}>
@@ -369,7 +387,7 @@ export default function HomeScreen({ route }) {
 
                     <View style={styles.postsContainer}>
                         {communityPosts.map((post) => {
-                            const isOwn = post.userId === currentUser?.uid;
+                            const isOwnPost = post.userId === currentUser?.uid;
 
                             return (
                                 <View
@@ -402,7 +420,6 @@ export default function HomeScreen({ route }) {
                                                     color="#fff"
                                                 />
                                             </View>
-
                                             <View>
                                                 <Text
                                                     style={[
@@ -428,6 +445,108 @@ export default function HomeScreen({ route }) {
                                                     </Text>
                                                 )}
                                             </View>
+                                            <View style={styles.postHeaderActions}>
+                                                {isOwnPost && (
+                                                    <TouchableOpacity
+                                                        style={styles.deleteButton}
+                                                        onPress={async () => {
+                                                            Alert.alert(
+                                                                "Delete Post",
+                                                                "Are you sure you want to delete this post?",
+                                                                [
+                                                                    { text: "Cancel", style: "cancel" },
+                                                                    {
+                                                                        text: "Delete",
+                                                                        style: "destructive",
+                                                                        onPress: async () => {
+                                                                            try {
+                                                                                const idToken = await currentUser.getIdToken();
+                                                                                await postAPI.delete(idToken, post.id);
+                                                                                // Refresh posts from backend
+                                                                                fetchCommunityPosts();
+                                                                            } catch (error) {
+                                                                                console.error("Error deleting post:", error);
+                                                                                Alert.alert("Error", "Failed to delete post. Please try again.");
+                                                                            }
+                                                                        },
+                                                                    },
+                                                                ]
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Ionicons name="trash-outline" size={20} color="#F44336" />
+                                                    </TouchableOpacity>
+                                                )}
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        if (isOwnPost) {
+                                                            // Show edit/delete menu for own posts
+                                                            Alert.alert(
+                                                                "Post Options",
+                                                                "What would you like to do?",
+                                                                [
+                                                                    { text: "Cancel", style: "cancel" },
+                                                                    {
+                                                                        text: "Edit",
+                                                                        onPress: () => {
+                                                                            navigation.navigate("CreatePost", {
+                                                                                currentUserId: currentUser?.uid,
+                                                                                editPost: post,
+                                                                            });
+                                                                        },
+                                                                    },
+                                                                    {
+                                                                        text: "Delete",
+                                                                        style: "destructive",
+                                                                        onPress: () => {
+                                                                            Alert.alert(
+                                                                                "Delete Post",
+                                                                                "Are you sure you want to delete this post?",
+                                                                                [
+                                                                                    { text: "Cancel", style: "cancel" },
+                                                                                    {
+                                                                                        text: "Delete",
+                                                                                        style: "destructive",
+                                                                                        onPress: async () => {
+                                                                                            try {
+                                                                                                const idToken = await currentUser.getIdToken();
+                                                                                                await postAPI.delete(idToken, post.id);
+                                                                                                // Refresh posts from backend
+                                                                                                fetchCommunityPosts();
+                                                                                            } catch (error) {
+                                                                                                console.error("Error deleting post:", error);
+                                                                                                Alert.alert("Error", "Failed to delete post. Please try again.");
+                                                                                            }
+                                                                                        },
+                                                                                    },
+                                                                                ]
+                                                                            );
+                                                                        },
+                                                                    },
+                                                                ]
+                                                            );
+                                                        } else {
+                                                            // For other users' posts, show report option
+                                                            Alert.alert(
+                                                                "Post Options",
+                                                                "What would you like to do?",
+                                                                [
+                                                                    { text: "Cancel", style: "cancel" },
+                                                                    {
+                                                                        text: "Report",
+                                                                        style: "destructive",
+                                                                        onPress: () => {
+                                                                            Alert.alert("Report Post", "Thank you for reporting. We'll review this post.");
+                                                                        },
+                                                                    },
+                                                                ]
+                                                            );
+                                                        }
+                                                    }}
+                                                >
+                                                    <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
 
                                         {/* Options */}
@@ -440,7 +559,7 @@ export default function HomeScreen({ route }) {
                                                     },
                                                 ];
 
-                                                if (isOwn) {
+                                                if (isOwnPost) {
                                                     actions.push(
                                                         {
                                                             text: "Edit",
@@ -557,37 +676,25 @@ export default function HomeScreen({ route }) {
                                     <View style={styles.postActions}>
                                         <TouchableOpacity
                                             style={styles.postActionButton}
-                                            onPress={() => {
-                                                const liked =
-                                                    post.likedBy?.includes(
-                                                        currentUser?.uid
-                                                    );
-
-                                                const updatedPost = {
-                                                    ...post,
-                                                    likes: liked
-                                                        ? post.likes - 1
-                                                        : post.likes + 1,
-                                                    likedBy: liked
-                                                        ? post.likedBy.filter(
-                                                              (id) =>
-                                                                  id !==
-                                                                  currentUser?.uid
-                                                          )
-                                                        : [
-                                                              ...(post.likedBy ||
-                                                                  []),
-                                                              currentUser?.uid,
-                                                          ],
-                                                };
-
-                                                setCommunityPosts((prev) =>
-                                                    prev.map((p) =>
-                                                        p.id === post.id
-                                                            ? updatedPost
-                                                            : p
-                                                    )
-                                                );
+                                            onPress={async () => {
+                                                if (!currentUser) return;
+                                                
+                                                try {
+                                                    const idToken = await currentUser.getIdToken();
+                                                    const response = await postAPI.toggleLike(idToken, post.id);
+                                                    
+                                                    if (response.success && response.data) {
+                                                        // Update the post in the list with the response data
+                                                        setCommunityPosts(prev =>
+                                                            prev.map(p =>
+                                                                p.id === post.id ? response.data : p
+                                                            )
+                                                        );
+                                                    }
+                                                } catch (error) {
+                                                    console.error("Error toggling like:", error);
+                                                    Alert.alert("Error", "Failed to like post. Please try again.");
+                                                }
                                             }}
                                         >
                                             <Ionicons

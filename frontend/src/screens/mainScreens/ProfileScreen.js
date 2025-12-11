@@ -11,6 +11,7 @@ import {
     RefreshControl,
     Switch,
     ActivityIndicator,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { userAPI } from "../../services/api";
 import { auth } from "../../services/firebase";
+import { signOut as firebaseSignOut } from "firebase/auth";
 import { useTheme } from "../../context/ThemeContext";
 
 export default function ProfileScreen({ navigation }) {
@@ -287,16 +289,36 @@ export default function ProfileScreen({ navigation }) {
 
                     <TouchableOpacity
                         style={styles.row}
-                        onPress={async () => {
-                            try {
-                                await auth.signOut();
-                                navigation.reset({
-                                    index: 0,
-                                    routes: [{ name: "Landing" }],
-                                });
-                            } catch (err) {
-                                console.error("Logout Error:", err);
-                            }
+                        onPress={() => {
+                            Alert.alert(
+                                "Logout",
+                                "Are you sure you want to logout?",
+                                [
+                                    {
+                                        text: "Cancel",
+                                        style: "cancel",
+                                    },
+                                    {
+                                        text: "Logout",
+                                        style: "destructive",
+                                        onPress: async () => {
+                                            try {
+                                                await firebaseSignOut(auth);
+                                                // Clear AsyncStorage
+                                                await AsyncStorage.clear();
+                                                // Navigate to login screen
+                                                navigation.reset({
+                                                    index: 0,
+                                                    routes: [{ name: "Landing" }],
+                                                });
+                                            } catch (error) {
+                                                console.error("Error signing out:", error);
+                                                Alert.alert("Error", "Failed to logout. Please try again.");
+                                            }
+                                        },
+                                    },
+                                ]
+                            );
                         }}
                     >
                         <View style={styles.rowLeft}>
@@ -461,5 +483,14 @@ const styles = StyleSheet.create({
     rowText: {
         fontSize: 16,
         fontWeight: "500",
+    },
+
+    logoutButton: {
+        paddingVertical: 16,
+    },
+
+    logoutText: {
+        fontSize: 16,
+        fontWeight: "600",
     },
 });

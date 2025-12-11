@@ -370,6 +370,69 @@ export const eventAPI = {
 };
 
 /**
+ * Post API endpoints
+ */
+export const postAPI = {
+  // GET /api/posts
+  getAll: async (token) => {
+    return apiRequest('/posts', {
+      method: 'GET',
+      token,
+    });
+  },
+
+  // GET /api/posts/:postId
+  getById: async (token, postId) => {
+    return apiRequest(`/posts/${postId}`, {
+      method: 'GET',
+      token,
+    });
+  },
+
+  // POST /api/posts
+  create: async (token, postData) => {
+    return apiRequest('/posts', {
+      method: 'POST',
+      token,
+      body: postData,
+    });
+  },
+
+  // PUT /api/posts/:postId
+  update: async (token, postId, postData) => {
+    return apiRequest(`/posts/${postId}`, {
+      method: 'PUT',
+      token,
+      body: postData,
+    });
+  },
+
+  // DELETE /api/posts/:postId
+  delete: async (token, postId) => {
+    return apiRequest(`/posts/${postId}`, {
+      method: 'DELETE',
+      token,
+    });
+  },
+
+  // POST /api/posts/:postId/like
+  toggleLike: async (token, postId) => {
+    return apiRequest(`/posts/${postId}/like`, {
+      method: 'POST',
+      token,
+    });
+  },
+
+  // GET /api/posts/user/:userId
+  getByUserId: async (token, userId) => {
+    return apiRequest(`/posts/user/${userId}`, {
+      method: 'GET',
+      token,
+    });
+  },
+};
+
+/**
  * Health check endpoint
  */
 export const healthCheck = async () => {
@@ -387,6 +450,7 @@ export default {
   userAPI,
   challengeAPI,
   eventAPI,
+  postAPI,
   healthCheck,
 };
 

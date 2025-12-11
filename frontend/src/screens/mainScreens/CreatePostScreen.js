@@ -14,6 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
+import { postAPI } from "../../services/api";
+import { storage } from "../../services/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import Header from "../../components/Header";
 
@@ -78,60 +81,101 @@ export default function CreatePostScreen({ route }) {
         );
     };
 
-    const handlePost = () => {
+    const uploadImageToFirebase = async (localUri) => {
+        if (!localUri || !storage) {
+            return null;
+        }
+
+        try {
+            // Generate unique filename
+            const filename = `posts/${currentUser.uid}/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+            const storageRef = ref(storage, filename);
+
+            // Convert local URI to blob
+            const response = await fetch(localUri);
+            const blob = await response.blob();
+
+            // Upload to Firebase Storage
+            await uploadBytes(storageRef, blob);
+            
+            // Get download URL
+            const downloadURL = await getDownloadURL(storageRef);
+            console.log("✅ Image uploaded to Firebase Storage:", downloadURL);
+            return downloadURL;
+        } catch (error) {
+            console.error("❌ Error uploading image to Firebase Storage:", error);
+            throw new Error("Failed to upload image. Please try again.");
+        }
+    };
+
+    const handlePost = async () => {
         if (!caption.trim() && !imageUri) {
             Alert.alert("Error", "Please add a caption or photo to your post.");
             return;
         }
 
-        if (isEditing) {
-            // Update existing post
-            const updatedPost = {
-                ...editPost,
-                imageUrl: imageUri,
-                caption: caption.trim(),
-                timestamp: new Date().toISOString(), // Update timestamp
-            };
+        if (!currentUser) {
+            Alert.alert("Error", "You must be logged in to create a post.");
+            return;
+        }
 
-            // Navigate back and pass the updated post via navigation params
-            navigation.navigate("Home", { updatedPost });
-            
-            Alert.alert(
-                "Post Updated!",
-                "Your post has been updated.",
-                [
-                    {
-                        text: "OK",
-                    },
-                ]
-            );
-        } else {
-            // Create new post
-            const newPost = {
-                id: Date.now().toString(),
-                userId: currentUserId || currentUser?.uid || "unknown",
-                username: currentUser?.displayName || currentUser?.email?.split("@")[0] || "user",
-                userImage: null, // Can add user profile image later
-                imageUrl: imageUri,
-                caption: caption.trim(),
-                likes: 0,
-                likedBy: [],
-                timestamp: new Date().toISOString(),
-                isSponsored: false,
-            };
+        try {
+            setUploading(true);
+            const idToken = await currentUser.getIdToken();
 
-            // Navigate back and pass the new post via navigation params
-            navigation.navigate("Home", { newPost });
-            
+            // Upload image to Firebase Storage if there's an image
+            let imageUrl = imageUri;
+            if (imageUri && !imageUri.startsWith('http')) {
+                // Only upload if it's a local URI (not already a URL)
+                imageUrl = await uploadImageToFirebase(imageUri);
+            }
+
+            if (isEditing) {
+                // Update existing post
+                const response = await postAPI.update(idToken, editPost.id, {
+                    caption: caption.trim(),
+                    imageUrl: imageUrl,
+                });
+
+                if (response.success) {
+                    // Navigate back - HomeScreen will refresh posts
+                    navigation.goBack();
+                    Alert.alert(
+                        "Post Updated!",
+                        "Your post has been updated.",
+                        [{ text: "OK" }]
+                    );
+                } else {
+                    throw new Error(response.message || "Failed to update post");
+                }
+            } else {
+                // Create new post
+                const response = await postAPI.create(idToken, {
+                    caption: caption.trim(),
+                    imageUrl: imageUrl,
+                    isSponsored: false,
+                });
+
+                if (response.success) {
+                    // Navigate back - HomeScreen will refresh posts
+                    navigation.goBack();
+                    Alert.alert(
+                        "Post Created!",
+                        "Your post has been added to Community Watch.",
+                        [{ text: "OK" }]
+                    );
+                } else {
+                    throw new Error(response.message || "Failed to create post");
+                }
+            }
+        } catch (error) {
+            console.error("Error saving post:", error);
             Alert.alert(
-                "Post Created!",
-                "Your post has been added to Community Watch.",
-                [
-                    {
-                        text: "OK",
-                    },
-                ]
+                "Error",
+                error.message || "Failed to save post. Please try again."
             );
+        } finally {
+            setUploading(false);
         }
     };
 
