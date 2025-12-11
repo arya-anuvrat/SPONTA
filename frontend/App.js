@@ -25,6 +25,8 @@ import MyChallengeDetailScreen from "./src/screens/mainScreens/MyChallengeDetail
 import DailyChallengeScreen from "./src/screens/mainScreens/DailyChallengeScreen";
 import ChallengeFilterScreen from "./src/screens/mainScreens/ChallengeFilterScreen";
 import CameraVerificationScreen from "./src/screens/mainScreens/CameraVerificationScreen";
+import SpontaAIScreen from "./src/screens/mainScreens/SpontaAIScreen";
+import CreatePostScreen from "./src/screens/mainScreens/CreatePostScreen";
 import { OnboardingProvider } from "./src/context/OnboardingContext";
 import ProfileScreen from "./src/screens/mainScreens/ProfileScreen";
 import StreakScreen from "./src/screens/mainScreens/StreakScreen";
@@ -100,6 +102,14 @@ export default function App() {
                                 <Stack.Screen
                                     name="CameraVerification"
                                     component={CameraVerificationScreen}
+                                />
+                                <Stack.Screen
+                                    name="SpontaAI"
+                                    component={SpontaAIScreen}
+                                />
+                                <Stack.Screen
+                                    name="CreatePost"
+                                    component={CreatePostScreen}
                                 />
                                 <Stack.Screen
                                     name="Challenges"

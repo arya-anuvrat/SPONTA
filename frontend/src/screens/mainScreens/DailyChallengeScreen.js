@@ -69,91 +69,117 @@ export default function DailyChallengeScreen() {
         requestPermissions();
     }, []);
 
-    // Fetch daily challenge (cached per day in backend)
-    useEffect(() => {
-        const fetchDailyChallenge = async () => {
-            if (!currentUser) {
-                navigation.goBack();
-                return;
+    // Fetch daily challenge function
+    const fetchDailyChallenge = React.useCallback(async (forceRefresh = false) => {
+        if (!currentUser) {
+            navigation.goBack();
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const idToken = await currentUser.getIdToken();
+
+            // Fetch user stats (includes streak)
+            try {
+                const stats = await userAPI.getStats(idToken);
+                if (stats.success && stats.data) {
+                    setStreak(stats.data.currentStreak || 0);
+                    // TODO: Get actual weekly data from backend
+                }
+            } catch (error) {
+                console.warn("Could not fetch stats:", error);
             }
 
+            // Get user's timezone
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            
+            // Fetch today's daily challenge (backend handles caching per day)
+            // Use forceRegenerate if forceRefresh is true
             try {
-                setLoading(true);
-                const idToken = await currentUser.getIdToken();
-
-                // Fetch user stats (includes streak)
-                try {
-                    const stats = await userAPI.getStats(idToken);
-                    if (stats.success && stats.data) {
-                        setStreak(stats.data.currentStreak || 0);
-                        // TODO: Get actual weekly data from backend
-                    }
-                } catch (error) {
-                    console.warn("Could not fetch stats:", error);
-                }
-
-                // Get user's timezone
-                const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                
-                // Fetch today's daily challenge (backend handles caching per day)
-                try {
-                    const response = await challengeAPI.getDaily(idToken, userTimezone);
-                    if (response.success && response.data) {
-                        setDailyChallenge(response.data);
-                        
-                        // Check if user has already completed/verified this challenge
-                        if (response.data.id) {
-                            try {
-                                const progressResponse = await challengeAPI.getProgress(idToken, response.data.id);
-                                if (progressResponse.success && progressResponse.data?.userChallenge) {
-                                    const userChallenge = progressResponse.data.userChallenge;
-                                    
-                                    // Only mark as completed if BOTH status is "completed" AND verified is strictly true
-                                    // This ensures we don't treat challenges with status="completed" but verified=false as completed
-                                    const verifiedValue = userChallenge.verified;
-                                    const isVerified = verifiedValue === true || verifiedValue === "true"; // Handle string "true" too
-                                    const isCompleted = userChallenge.status === "completed" && isVerified === true;
-                                    
-                                    // Debug logging
-                                    if (__DEV__) {
-                                        console.log('=== Daily Challenge Status Check ===');
-                                        console.log('  Challenge ID:', response.data.id);
-                                        console.log('  status:', userChallenge.status);
-                                        console.log('  verified (raw):', verifiedValue, typeof verifiedValue);
-                                        console.log('  isVerified:', isVerified);
-                                        console.log('  isCompleted:', isCompleted);
-                                        console.log('  Full userChallenge:', JSON.stringify(userChallenge, null, 2));
-                                    }
-                                    
-                                    setChallengeStatus({
-                                        status: userChallenge.status,
-                                        verified: isVerified,
-                                        isCompleted: isCompleted,
-                                    });
+                const response = await challengeAPI.getDaily(idToken, userTimezone, forceRefresh);
+                if (response.success && response.data) {
+                    setDailyChallenge(response.data);
+                    
+                    // Check if user has already completed/verified this challenge
+                    if (response.data.id) {
+                        try {
+                            const progressResponse = await challengeAPI.getProgress(idToken, response.data.id);
+                            if (progressResponse.success && progressResponse.data?.userChallenge) {
+                                const userChallenge = progressResponse.data.userChallenge;
+                                
+                                // Only mark as completed if BOTH status is "completed" AND verified is strictly true
+                                // This ensures we don't treat challenges with status="completed" but verified=false as completed
+                                const verifiedValue = userChallenge.verified;
+                                const isVerified = verifiedValue === true || verifiedValue === "true"; // Handle string "true" too
+                                const isCompleted = userChallenge.status === "completed" && isVerified === true;
+                                
+                                // Debug logging
+                                if (__DEV__) {
+                                    console.log('=== Daily Challenge Status Check ===');
+                                    console.log('  Challenge ID:', response.data.id);
+                                    console.log('  status:', userChallenge.status);
+                                    console.log('  verified (raw):', verifiedValue, typeof verifiedValue);
+                                    console.log('  isVerified:', isVerified);
+                                    console.log('  isCompleted:', isCompleted);
+                                    console.log('  Full userChallenge:', JSON.stringify(userChallenge, null, 2));
                                 }
-                            } catch (progressError) {
-                                console.warn("Could not fetch challenge progress:", progressError);
-                                // Continue without progress data
+                                
+                                setChallengeStatus({
+                                    status: userChallenge.status,
+                                    verified: isVerified,
+                                    isCompleted: isCompleted,
+                                });
                             }
+                        } catch (progressError) {
+                            console.warn("Could not fetch challenge progress:", progressError);
+                            // Continue without progress data
                         }
-                    } else {
-                        Alert.alert("No Challenge", "No daily challenge available today.");
-                        navigation.goBack();
                     }
-                } catch (error) {
-                    console.error("Error fetching daily challenge:", error);
-                    Alert.alert("Error", "Could not load daily challenge. Please try again.");
+                } else {
+                    Alert.alert("No Challenge", "No daily challenge available today.");
                     navigation.goBack();
                 }
             } catch (error) {
-                console.error("Error:", error);
-            } finally {
-                setLoading(false);
+                console.error("Error fetching daily challenge:", error);
+                Alert.alert("Error", "Could not load daily challenge. Please try again.");
+                navigation.goBack();
             }
-        };
-
-        fetchDailyChallenge();
+        } catch (error) {
+            console.error("Error:", error);
+        } finally {
+            setLoading(false);
+        }
     }, [currentUser, navigation]);
+
+    // Initial fetch on mount
+    useEffect(() => {
+        fetchDailyChallenge();
+    }, [fetchDailyChallenge]);
+
+    // Refresh challenge when screen comes into focus (e.g., after changing filters)
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            // Refresh the challenge when screen is focused
+            if (currentUser) {
+                fetchDailyChallenge(false);
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, currentUser, fetchDailyChallenge]);
+
+    // Refresh challenge when screen comes into focus (e.g., after changing filters)
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            // Refresh the challenge when screen is focused
+            if (currentUser) {
+                fetchDailyChallenge(false);
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, currentUser]);
 
     const handleAcceptWithVerification = () => {
         // Navigate to camera verification screen
