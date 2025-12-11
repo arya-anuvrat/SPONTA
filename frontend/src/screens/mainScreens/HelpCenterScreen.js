@@ -8,17 +8,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../context/ThemeContext"; // ✅ use global theme
 
 export default function HelpCenterScreen({ navigation }) {
-    const [darkMode, setDarkMode] = React.useState(false);
-
-    React.useEffect(() => {
-        (async () => {
-            const saved = await AsyncStorage.getItem("darkMode");
-            if (saved !== null) setDarkMode(saved === "true");
-        })();
-    }, []);
+    const { isDarkMode } = useTheme(); // ✅ global dark mode
 
     const FAQ = [
         {
@@ -39,7 +32,7 @@ export default function HelpCenterScreen({ navigation }) {
         <SafeAreaView
             style={[
                 styles.container,
-                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+                { backgroundColor: isDarkMode ? "#0d0d0d" : "#f2f2f7" },
             ]}
         >
             {/* HEADER */}
@@ -48,14 +41,14 @@ export default function HelpCenterScreen({ navigation }) {
                     <Ionicons
                         name="chevron-back"
                         size={28}
-                        color={darkMode ? "#fff" : "#000"}
+                        color={isDarkMode ? "#fff" : "#000"}
                     />
                 </TouchableOpacity>
 
                 <Text
                     style={[
                         styles.headerText,
-                        { color: darkMode ? "#fff" : "#000" },
+                        { color: isDarkMode ? "#fff" : "#000" },
                     ]}
                 >
                     Help Center
@@ -68,12 +61,12 @@ export default function HelpCenterScreen({ navigation }) {
                 {FAQ.map((item, index) => (
                     <View
                         key={index}
-                        style={[styles.card, darkMode && styles.cardDark]}
+                        style={[styles.card, isDarkMode && styles.cardDark]}
                     >
                         <Text
                             style={[
                                 styles.question,
-                                { color: darkMode ? "#fff" : "#000" },
+                                { color: isDarkMode ? "#fff" : "#000" },
                             ]}
                         >
                             {item.q}
@@ -82,7 +75,7 @@ export default function HelpCenterScreen({ navigation }) {
                         <Text
                             style={[
                                 styles.answer,
-                                { color: darkMode ? "#ccc" : "#555" },
+                                { color: isDarkMode ? "#ccc" : "#555" },
                             ]}
                         >
                             {item.a}

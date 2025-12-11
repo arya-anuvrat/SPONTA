@@ -13,13 +13,20 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+
 import { userAPI } from "../../services/api";
 import { auth } from "../../services/firebase";
+import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function EditProfileScreen({ navigation, route }) {
-    const { user } = route.params;
+    // Load from params OR fallback to AuthContext user
+    const { currentUser } = useAuth();
+    const passedUser = route?.params?.user;
+    const user = passedUser || currentUser || {};
 
-    const [darkMode, setDarkMode] = useState(false);
+    const { isDarkMode } = useTheme();
+
     const [saving, setSaving] = useState(false);
 
     const [profile, setProfile] = useState({
@@ -29,14 +36,6 @@ export default function EditProfileScreen({ navigation, route }) {
     });
 
     const [showDatePicker, setShowDatePicker] = useState(false);
-
-    // Load Dark Mode
-    useEffect(() => {
-        (async () => {
-            const saved = await AsyncStorage.getItem("darkMode");
-            if (saved !== null) setDarkMode(saved === "true");
-        })();
-    }, []);
 
     const formatDisplayDate = (isoString) => {
         if (!isoString) return "";
@@ -68,11 +67,33 @@ export default function EditProfileScreen({ navigation, route }) {
         }
     };
 
+    // 🚨 If NO USER at all (should never happen), show fallback screen
+    if (!user?.email) {
+        return (
+            <SafeAreaView
+                style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
+            >
+                <Text
+                    style={{
+                        fontSize: 18,
+                        color: isDarkMode ? "#fff" : "#000",
+                    }}
+                >
+                    Unable to load profile.
+                </Text>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView
             style={[
                 styles.container,
-                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+                { backgroundColor: isDarkMode ? "#0d0d0d" : "#f2f2f7" },
             ]}
         >
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -82,14 +103,14 @@ export default function EditProfileScreen({ navigation, route }) {
                         <Ionicons
                             name="chevron-back"
                             size={28}
-                            color={darkMode ? "#fff" : "#000"}
+                            color={isDarkMode ? "#fff" : "#000"}
                         />
                     </TouchableOpacity>
 
                     <Text
                         style={[
                             styles.headerText,
-                            { color: darkMode ? "#fff" : "#000" },
+                            { color: isDarkMode ? "#fff" : "#000" },
                         ]}
                     >
                         Edit Profile
@@ -99,11 +120,11 @@ export default function EditProfileScreen({ navigation, route }) {
                 </View>
 
                 {/* FORM CARD */}
-                <View style={[styles.card, darkMode && styles.cardDark]}>
+                <View style={[styles.card, isDarkMode && styles.cardDark]}>
                     <Text
                         style={[
                             styles.sectionTitle,
-                            { color: darkMode ? "#ddd" : "#666" },
+                            { color: isDarkMode ? "#ddd" : "#666" },
                         ]}
                     >
                         Personal Information
@@ -114,7 +135,7 @@ export default function EditProfileScreen({ navigation, route }) {
                         <Text
                             style={[
                                 styles.label,
-                                { color: darkMode ? "#ccc" : "#555" },
+                                { color: isDarkMode ? "#ccc" : "#555" },
                             ]}
                         >
                             Display Name
@@ -123,8 +144,10 @@ export default function EditProfileScreen({ navigation, route }) {
                             style={[
                                 styles.input,
                                 {
-                                    backgroundColor: darkMode ? "#222" : "#eee",
-                                    color: darkMode ? "#fff" : "#000",
+                                    backgroundColor: isDarkMode
+                                        ? "#222"
+                                        : "#eee",
+                                    color: isDarkMode ? "#fff" : "#000",
                                 },
                             ]}
                             value={profile.displayName}
@@ -134,12 +157,12 @@ export default function EditProfileScreen({ navigation, route }) {
                         />
                     </View>
 
-                    {/* EMAIL - LOCKED */}
+                    {/* EMAIL LOCKED */}
                     <View style={styles.fieldGroup}>
                         <Text
                             style={[
                                 styles.label,
-                                { color: darkMode ? "#ccc" : "#555" },
+                                { color: isDarkMode ? "#ccc" : "#555" },
                             ]}
                         >
                             Email (locked)
@@ -149,20 +172,22 @@ export default function EditProfileScreen({ navigation, route }) {
                             style={[
                                 styles.input,
                                 {
-                                    backgroundColor: darkMode ? "#333" : "#ddd",
-                                    color: darkMode ? "#999" : "#666",
+                                    backgroundColor: isDarkMode
+                                        ? "#333"
+                                        : "#ddd",
+                                    color: isDarkMode ? "#999" : "#666",
                                 },
                             ]}
                             value={user.email}
                         />
                     </View>
 
-                    {/* DOB WITH DATE PICKER */}
+                    {/* DOB PICKER */}
                     <View style={styles.fieldGroup}>
                         <Text
                             style={[
                                 styles.label,
-                                { color: darkMode ? "#ccc" : "#555" },
+                                { color: isDarkMode ? "#ccc" : "#555" },
                             ]}
                         >
                             Date of Birth
@@ -175,7 +200,7 @@ export default function EditProfileScreen({ navigation, route }) {
                                 style={[
                                     styles.input,
                                     {
-                                        backgroundColor: darkMode
+                                        backgroundColor: isDarkMode
                                             ? "#222"
                                             : "#eee",
                                         justifyContent: "center",
@@ -184,7 +209,7 @@ export default function EditProfileScreen({ navigation, route }) {
                             >
                                 <Text
                                     style={{
-                                        color: darkMode ? "#fff" : "#000",
+                                        color: isDarkMode ? "#fff" : "#000",
                                     }}
                                 >
                                     {profile.dateOfBirth
@@ -203,15 +228,15 @@ export default function EditProfileScreen({ navigation, route }) {
                                 }
                                 mode="date"
                                 display="spinner"
-                                themeVariant={darkMode ? "dark" : "light"}
-                                onChange={(event, selected) => {
+                                themeVariant={isDarkMode ? "dark" : "light"}
+                                onChange={(event, selectedDate) => {
                                     if (Platform.OS === "android") {
                                         setShowDatePicker(false);
                                     }
-                                    if (selected) {
+                                    if (selectedDate) {
                                         setProfile({
                                             ...profile,
-                                            dateOfBirth: selected
+                                            dateOfBirth: selectedDate
                                                 .toISOString()
                                                 .split("T")[0],
                                         });
@@ -221,12 +246,12 @@ export default function EditProfileScreen({ navigation, route }) {
                         )}
                     </View>
 
-                    {/* COLLEGE FIELD */}
+                    {/* COLLEGE */}
                     <View style={styles.fieldGroup}>
                         <Text
                             style={[
                                 styles.label,
-                                { color: darkMode ? "#ccc" : "#555" },
+                                { color: isDarkMode ? "#ccc" : "#555" },
                             ]}
                         >
                             College
@@ -235,8 +260,10 @@ export default function EditProfileScreen({ navigation, route }) {
                             style={[
                                 styles.input,
                                 {
-                                    backgroundColor: darkMode ? "#222" : "#eee",
-                                    color: darkMode ? "#fff" : "#000",
+                                    backgroundColor: isDarkMode
+                                        ? "#222"
+                                        : "#eee",
+                                    color: isDarkMode ? "#fff" : "#000",
                                 },
                             ]}
                             value={profile.college}

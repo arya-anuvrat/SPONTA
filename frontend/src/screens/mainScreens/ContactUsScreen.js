@@ -9,18 +9,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../context/ThemeContext"; // ✅ use global theme
 
 export default function ContactUsScreen({ navigation }) {
+    const { isDarkMode } = useTheme(); // ✅ global dark mode
     const [message, setMessage] = useState("");
-    const [darkMode, setDarkMode] = useState(false);
-
-    React.useEffect(() => {
-        (async () => {
-            const saved = await AsyncStorage.getItem("darkMode");
-            if (saved !== null) setDarkMode(saved === "true");
-        })();
-    }, []);
 
     const submit = () => {
         if (!message.trim())
@@ -34,7 +27,7 @@ export default function ContactUsScreen({ navigation }) {
         <SafeAreaView
             style={[
                 styles.container,
-                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+                { backgroundColor: isDarkMode ? "#0d0d0d" : "#f2f2f7" },
             ]}
         >
             {/* HEADER */}
@@ -43,14 +36,14 @@ export default function ContactUsScreen({ navigation }) {
                     <Ionicons
                         name="chevron-back"
                         size={28}
-                        color={darkMode ? "#fff" : "#000"}
+                        color={isDarkMode ? "#fff" : "#000"}
                     />
                 </TouchableOpacity>
 
                 <Text
                     style={[
                         styles.headerText,
-                        { color: darkMode ? "#fff" : "#000" },
+                        { color: isDarkMode ? "#fff" : "#000" },
                     ]}
                 >
                     Contact Us
@@ -59,24 +52,24 @@ export default function ContactUsScreen({ navigation }) {
                 <View style={{ width: 28 }} />
             </View>
 
-            <View style={[styles.card, darkMode && styles.cardDark]}>
+            <View style={[styles.card, isDarkMode && styles.cardDark]}>
                 <Text
                     style={[
                         styles.label,
-                        { color: darkMode ? "#ccc" : "#555" },
+                        { color: isDarkMode ? "#ccc" : "#555" },
                     ]}
                 >
                     Your Message
                 </Text>
 
                 <TextInput
-                    style={[styles.input, darkMode && styles.inputDark]}
+                    style={[styles.input, isDarkMode && styles.inputDark]}
                     multiline
                     numberOfLines={6}
                     value={message}
                     onChangeText={setMessage}
                     placeholder="Write your message here..."
-                    placeholderTextColor={darkMode ? "#777" : "#999"}
+                    placeholderTextColor={isDarkMode ? "#777" : "#999"}
                 />
 
                 <TouchableOpacity style={styles.button} onPress={submit}>
@@ -113,7 +106,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
 
-    cardDark: { backgroundColor: "#1a1a1a" },
+    cardDark: { backgroundColor: "#1a1a1a", shadowOpacity: 0 },
 
     label: { fontSize: 15, fontWeight: "600", marginBottom: 10 },
 

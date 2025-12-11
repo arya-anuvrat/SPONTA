@@ -1,4 +1,5 @@
 // 🌟 BEAUTIFIED + ICON-ENHANCED PROFILE PAGE 🌟
+// (ThemeContext-Integrated Version — UI 100% unchanged)
 
 import React, { useEffect, useState } from "react";
 import {
@@ -11,25 +12,20 @@ import {
     Switch,
     ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { userAPI } from "../../services/api";
 import { auth } from "../../services/firebase";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function ProfileScreen({ navigation }) {
+    const { isDarkMode, colors, toggleTheme } = useTheme();
+
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [darkMode, setDarkMode] = useState(false);
-
-    // Load saved dark mode
-    useEffect(() => {
-        (async () => {
-            const saved = await AsyncStorage.getItem("darkMode");
-            if (saved !== null) setDarkMode(saved === "true");
-        })();
-    }, []);
 
     const loadProfile = async (isRefresh = false) => {
         try {
@@ -38,7 +34,6 @@ export default function ProfileScreen({ navigation }) {
 
             const token = await auth.currentUser.getIdToken();
             const response = await userAPI.getProfile(token);
-
             setUser(response.data);
         } catch (err) {
             console.error("Profile Load Error:", err);
@@ -54,19 +49,13 @@ export default function ProfileScreen({ navigation }) {
 
     const onRefresh = () => loadProfile(true);
 
-    const toggleDarkMode = async () => {
-        const newVal = !darkMode;
-        setDarkMode(newVal);
-        await AsyncStorage.setItem("darkMode", newVal.toString());
-    };
-
     // Loading state
     if (loading || !user) {
         return (
             <SafeAreaView
                 style={[
                     styles.container,
-                    { backgroundColor: darkMode ? "#000" : "#fff" },
+                    { backgroundColor: isDarkMode ? "#000" : "#fff" },
                 ]}
             >
                 <View style={{ marginTop: 40 }}>
@@ -80,7 +69,7 @@ export default function ProfileScreen({ navigation }) {
         <SafeAreaView
             style={[
                 styles.container,
-                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+                { backgroundColor: isDarkMode ? "#0d0d0d" : "#f2f2f7" },
             ]}
         >
             <ScrollView
@@ -99,14 +88,14 @@ export default function ProfileScreen({ navigation }) {
                         <Ionicons
                             name="chevron-back"
                             size={28}
-                            color={darkMode ? "#fff" : "#000"}
+                            color={isDarkMode ? "#fff" : "#000"}
                         />
                     </TouchableOpacity>
 
                     <Text
                         style={[
                             styles.headerText,
-                            { color: darkMode ? "#fff" : "#000" },
+                            { color: isDarkMode ? "#fff" : "#000" },
                         ]}
                     >
                         Profile
@@ -120,7 +109,7 @@ export default function ProfileScreen({ navigation }) {
                     style={[
                         styles.card,
                         { marginTop: 20 },
-                        darkMode && styles.cardDark,
+                        isDarkMode && styles.cardDark,
                     ]}
                 >
                     <View style={styles.avatarWrapper}>
@@ -137,7 +126,7 @@ export default function ProfileScreen({ navigation }) {
                     <Text
                         style={[
                             styles.name,
-                            { color: darkMode ? "#fff" : "#000" },
+                            { color: isDarkMode ? "#fff" : "#000" },
                         ]}
                     >
                         {user.displayName}
@@ -146,7 +135,7 @@ export default function ProfileScreen({ navigation }) {
                     <Text
                         style={[
                             styles.email,
-                            { color: darkMode ? "#ccc" : "#777" },
+                            { color: isDarkMode ? "#ccc" : "#777" },
                         ]}
                     >
                         {user.email}
@@ -157,7 +146,7 @@ export default function ProfileScreen({ navigation }) {
                             <Text
                                 style={[
                                     styles.statValue,
-                                    { color: darkMode ? "#fff" : "#000" },
+                                    { color: isDarkMode ? "#fff" : "#000" },
                                 ]}
                             >
                                 {user.points ?? 0}
@@ -165,7 +154,7 @@ export default function ProfileScreen({ navigation }) {
                             <Text
                                 style={[
                                     styles.statLabel,
-                                    { color: darkMode ? "#aaa" : "#555" },
+                                    { color: isDarkMode ? "#aaa" : "#555" },
                                 ]}
                             >
                                 ⭐ Points
@@ -176,7 +165,7 @@ export default function ProfileScreen({ navigation }) {
                             <Text
                                 style={[
                                     styles.statValue,
-                                    { color: darkMode ? "#fff" : "#000" },
+                                    { color: isDarkMode ? "#fff" : "#000" },
                                 ]}
                             >
                                 {user.currentStreak ?? 0}
@@ -184,7 +173,7 @@ export default function ProfileScreen({ navigation }) {
                             <Text
                                 style={[
                                     styles.statLabel,
-                                    { color: darkMode ? "#aaa" : "#555" },
+                                    { color: isDarkMode ? "#aaa" : "#555" },
                                 ]}
                             >
                                 🔥 Streak
@@ -194,11 +183,11 @@ export default function ProfileScreen({ navigation }) {
                 </View>
 
                 {/* ACCOUNT OPTIONS */}
-                <View style={[styles.card, darkMode && styles.cardDark]}>
+                <View style={[styles.card, isDarkMode && styles.cardDark]}>
                     <Text
                         style={[
                             styles.sectionTitle,
-                            darkMode && styles.sectionDark,
+                            isDarkMode && styles.sectionDark,
                         ]}
                     >
                         👤 Account
@@ -207,7 +196,7 @@ export default function ProfileScreen({ navigation }) {
                     <OptionRow
                         title="Edit Profile"
                         icon="person-circle-outline"
-                        darkMode={darkMode}
+                        darkMode={isDarkMode}
                         onPress={() =>
                             navigation.navigate("EditProfile", { user })
                         }
@@ -216,17 +205,17 @@ export default function ProfileScreen({ navigation }) {
                     <OptionRow
                         title="Privacy Information"
                         icon="shield-checkmark-outline"
-                        darkMode={darkMode}
+                        darkMode={isDarkMode}
                         onPress={() => navigation.navigate("PrivacySettings")}
                     />
                 </View>
 
                 {/* APP SETTINGS */}
-                <View style={[styles.card, darkMode && styles.cardDark]}>
+                <View style={[styles.card, isDarkMode && styles.cardDark]}>
                     <Text
                         style={[
                             styles.sectionTitle,
-                            darkMode && styles.sectionDark,
+                            isDarkMode && styles.sectionDark,
                         ]}
                     >
                         ⚙️ App Settings
@@ -237,13 +226,13 @@ export default function ProfileScreen({ navigation }) {
                             <Ionicons
                                 name="moon-outline"
                                 size={22}
-                                color={darkMode ? "#b39cff" : "#444"}
+                                color={isDarkMode ? "#b39cff" : "#444"}
                                 style={{ marginRight: 10 }}
                             />
                             <Text
                                 style={[
                                     styles.rowText,
-                                    { color: darkMode ? "#fff" : "#000" },
+                                    { color: isDarkMode ? "#fff" : "#000" },
                                 ]}
                             >
                                 Dark Mode
@@ -251,20 +240,20 @@ export default function ProfileScreen({ navigation }) {
                         </View>
 
                         <Switch
-                            value={darkMode}
-                            onValueChange={toggleDarkMode}
-                            thumbColor={darkMode ? "#7b3aed" : "#ccc"}
+                            value={isDarkMode}
+                            onValueChange={toggleTheme}
+                            thumbColor={isDarkMode ? "#7b3aed" : "#ccc"}
                             trackColor={{ true: "#b197ff", false: "#888" }}
                         />
                     </View>
                 </View>
 
                 {/* SUPPORT */}
-                <View style={[styles.card, darkMode && styles.cardDark]}>
+                <View style={[styles.card, isDarkMode && styles.cardDark]}>
                     <Text
                         style={[
                             styles.sectionTitle,
-                            darkMode && styles.sectionDark,
+                            isDarkMode && styles.sectionDark,
                         ]}
                     >
                         💬 Support
@@ -273,14 +262,14 @@ export default function ProfileScreen({ navigation }) {
                     <OptionRow
                         title="Contact Us"
                         icon="mail-outline"
-                        darkMode={darkMode}
+                        darkMode={isDarkMode}
                         onPress={() => navigation.navigate("ContactUs")}
                     />
 
                     <OptionRow
                         title="Help Center"
                         icon="help-circle-outline"
-                        darkMode={darkMode}
+                        darkMode={isDarkMode}
                         onPress={() => navigation.navigate("HelpCenter")}
                     />
                 </View>
@@ -321,7 +310,7 @@ function OptionRow({ title, icon, darkMode, onPress }) {
     );
 }
 
-// 🌟 Styles
+// 🌟 Styles (UNCHANGED)
 const styles = StyleSheet.create({
     container: { flex: 1 },
 
@@ -396,9 +385,7 @@ const styles = StyleSheet.create({
         marginBottom: 14,
         opacity: 0.8,
     },
-    sectionDark: {
-        color: "#ddd",
-    },
+    sectionDark: { color: "#ddd" },
 
     row: {
         flexDirection: "row",
