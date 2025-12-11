@@ -2,7 +2,7 @@
  * UserChallenge Model - Firestore operations for userChallenges collection
  */
 
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
 const { NotFoundError } = require('../utils/errors');
 const { USER_CHALLENGE_STATUS } = require('../utils/constants');
 
@@ -27,6 +27,11 @@ const createUserChallenge = async (userChallengeData) => {
     verified: false,
     verifiedAt: null,
     verifiedBy: null,
+
+    // Streak tracking - AI-generated challenges don't count for streaks
+    countsForStreak: userChallengeData.countsForStreak !== undefined 
+      ? userChallengeData.countsForStreak 
+      : true, // Default to true (counts for streak) unless explicitly set to false
 
     pointsEarned: 0,
     createdAt: new Date(),
@@ -123,28 +128,52 @@ const updateUserChallenge = async (userChallengeId, updateData) => {
  * Only marks as COMPLETED if verified is true, otherwise keeps as ACCEPTED
  */
 const completeUserChallenge = async (userChallengeId, completionData) => {
+  // Strict boolean check - only true if explicitly boolean true
   const isVerified = completionData.verified === true;
+  
+  console.log('🔍 completeUserChallenge debug:', {
+    userChallengeId,
+    completionDataVerified: completionData.verified,
+    completionDataVerifiedType: typeof completionData.verified,
+    isVerified,
+  });
   
   const updateDoc = {
     // Only mark as completed if verified, otherwise keep as accepted
     status: isVerified ? USER_CHALLENGE_STATUS.COMPLETED : USER_CHALLENGE_STATUS.ACCEPTED,
-    completedAt: isVerified ? new Date() : null,
+    completedAt: isVerified ? admin.firestore.Timestamp.now() : null,
 
     // Values sent from Challenge Service
     photoUrl: completionData.photoUrl || null,
     location: completionData.location || null,
 
-    // AI verification fields
-    verified: isVerified,
-    verifiedAt: isVerified ? new Date() : null,
+    // AI verification fields - ensure boolean
+    verified: isVerified ? true : false, // Explicit boolean, not truthy
+    verifiedAt: isVerified ? admin.firestore.Timestamp.now() : null,
     verifiedBy: isVerified ? (completionData.verifiedBy || null) : null,
+    aiConfidence: completionData.aiConfidence || null,
+    aiReasoning: completionData.aiReasoning || null,
 
     pointsEarned: isVerified ? (completionData.pointsEarned || 0) : 0,
-    updatedAt: new Date(),
+    updatedAt: admin.firestore.Timestamp.now(),
   };
+  
+  console.log('📝 Updating userChallenge with:', {
+    status: updateDoc.status,
+    verified: updateDoc.verified,
+    verifiedType: typeof updateDoc.verified,
+  });
 
   await db.collection(COLLECTION_NAME).doc(userChallengeId).update(updateDoc);
-  return getUserChallengeById(userChallengeId);
+  const result = await getUserChallengeById(userChallengeId);
+  
+  console.log('✅ UserChallenge updated, result:', {
+    status: result.status,
+    verified: result.verified,
+    verifiedType: typeof result.verified,
+  });
+  
+  return result;
 };
 
 module.exports = {

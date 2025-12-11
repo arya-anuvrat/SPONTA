@@ -75,7 +75,7 @@ export default function SignInScreen() {
             
             if (response.success) {
                 // Navigation will happen automatically via AuthContext
-                navigation.navigate("Home");
+        navigation.navigate("Home");
             } else {
                 throw new Error(response.message || "Sign in failed");
             }

@@ -4,6 +4,7 @@
 
 const { getUserById, updateUserStreak } = require('../models/User');
 const { getUserChallenges } = require('../models/UserChallenge');
+const { getChallengeById } = require('../models/Challenge');
 const { USER_CHALLENGE_STATUS } = require('../utils/constants');
 const { checkStreakNotifications } = require('./notificationService');
 
@@ -35,50 +36,86 @@ const updateStreak = async (uid) => {
     return new Date(timestamp);
   };
   
-  // Check if user completed something today (only verified completions count for streak)
-  const completedToday = userChallenges.some(uc => {
-    if (!uc.completedAt) return false;
-    // Only count verified completions for streak
-    if (uc.verified !== true) return false;
-    const completedDate = toDate(uc.completedAt);
-    if (!completedDate) return false;
-    completedDate.setHours(0, 0, 0, 0);
-    return completedDate.getTime() === today.getTime();
-  });
+  // Helper to check if a challenge is a daily challenge
+  const isDailyChallenge = async (challengeId) => {
+    try {
+      const challenge = await getChallengeById(challengeId);
+      return challenge.isDaily === true;
+    } catch (error) {
+      // If challenge not found, assume it's not a daily challenge
+      return false;
+    }
+  };
+
+  // Check if user completed something today (only daily challenges count for streak)
+  const completedTodayChecks = await Promise.all(
+    userChallenges.map(async (uc) => {
+      if (!uc.completedAt) return false;
+      // Only count verified completions for streak
+      if (uc.verified !== true) return false;
+      // Only count daily challenges for streak
+      const isDaily = await isDailyChallenge(uc.challengeId);
+      if (!isDaily) return false;
+      const completedDate = toDate(uc.completedAt);
+      if (!completedDate) return false;
+      completedDate.setHours(0, 0, 0, 0);
+      return completedDate.getTime() === today.getTime();
+    })
+  );
+  const completedToday = completedTodayChecks.some(check => check === true);
   
-  // Check if user completed something yesterday (only verified completions count for streak)
-  const completedYesterday = userChallenges.some(uc => {
-    if (!uc.completedAt) return false;
-    // Only count verified completions for streak
-    if (uc.verified !== true) return false;
-    const completedDate = toDate(uc.completedAt);
-    if (!completedDate) return false;
-    completedDate.setHours(0, 0, 0, 0);
-    return completedDate.getTime() === yesterday.getTime();
-  });
+  // Check if user completed something yesterday (only daily challenges count for streak)
+  const completedYesterdayChecks = await Promise.all(
+    userChallenges.map(async (uc) => {
+      if (!uc.completedAt) return false;
+      // Only count verified completions for streak
+      if (uc.verified !== true) return false;
+      // Only count daily challenges for streak
+      const isDaily = await isDailyChallenge(uc.challengeId);
+      if (!isDaily) return false;
+      const completedDate = toDate(uc.completedAt);
+      if (!completedDate) return false;
+      completedDate.setHours(0, 0, 0, 0);
+      return completedDate.getTime() === yesterday.getTime();
+    })
+  );
+  const completedYesterday = completedYesterdayChecks.some(check => check === true);
   
-  let currentStreak = user.currentStreak || 0;
+  // Initialize streak - start at 0, only increment if daily challenges are completed
+  let currentStreak = 0;
   let longestStreak = user.longestStreak || 0;
   let lastActivityDate = user.lastActivityDate;
   
   if (completedToday) {
-    // User completed something today
-    if (completedYesterday || currentStreak === 0) {
-      // Continue streak (completed yesterday) or start new streak
-      currentStreak = completedYesterday ? currentStreak + 1 : 1;
+    // User completed a daily challenge today
+    if (completedYesterday) {
+      // Continue streak (completed yesterday too)
+      // Get the previous streak and increment it
+      const previousStreak = user.currentStreak || 0;
+      currentStreak = previousStreak + 1;
     } else {
-      // Streak was broken, start new streak
+      // Start new streak (first completion or streak was broken)
       currentStreak = 1;
     }
     lastActivityDate = today;
   } else {
     // User didn't complete anything today
-    if (!completedYesterday && currentStreak > 0) {
-      // Streak broken (didn't complete yesterday either)
+    if (!completedYesterday) {
+      // No completion today or yesterday - streak is 0
       currentStreak = 0;
+    } else {
+      // Completed yesterday but not today - keep streak for now
+      // (will be reset tomorrow if they don't complete)
+      // But only if they actually had a valid streak
+      const previousStreak = user.currentStreak || 0;
+      currentStreak = previousStreak > 0 ? previousStreak : 0;
     }
-    // If completed yesterday but not today, keep current streak for now
-    // (will be reset tomorrow if they don't complete)
+  }
+  
+  // Ensure streak is 0 if user has never completed a daily challenge
+  // Check if lastActivityDate exists and is valid
+  if (!lastActivityDate && currentStreak > 0) {
+    currentStreak = 0;
   }
   
   // Update longest streak if current is higher

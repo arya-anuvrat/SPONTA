@@ -70,10 +70,12 @@ const acceptChallenge = async (userId, challengeId) => {
   }
   
   // Create user-challenge relationship
+  // Preserve countsForStreak flag from challenge so streak service can check it
   const userChallenge = await createUserChallenge({
     userId,
     challengeId,
     status: USER_CHALLENGE_STATUS.ACCEPTED,
+    countsForStreak: challenge.countsForStreak !== false, // Default to true unless explicitly false
   });
   
   // Increment challenge accept count
@@ -131,14 +133,33 @@ const completeChallenge = async (userId, challengeId, completionData) => {
   const pointsEarned = challenge.points || POINTS.CHALLENGE_COMPLETE;
 
   // ⭐ Use AI verification result in your completion update ⭐
+  // Ensure verified is a boolean (strict check)
+  const isVerified = aiResult.verified === true;
+  
+  console.log('🔍 Challenge completion debug:', {
+    challengeId,
+    userId,
+    aiResultVerified: aiResult.verified,
+    aiResultVerifiedType: typeof aiResult.verified,
+    isVerified,
+    aiConfidence: aiResult.confidence,
+  });
+  
   const completed = await completeUserChallenge(userChallenge.id, {
     photoUrl: photoUrl || null,
     location: location || null,
-    verified: aiResult.verified,
+    verified: isVerified, // Ensure boolean true, not truthy value
     verifiedBy: "AI",
     aiConfidence: aiResult.confidence,
     aiReasoning: aiResult.reasoning,
     pointsEarned,
+  });
+  
+  console.log('✅ Challenge completed:', {
+    userChallengeId: completed.id,
+    status: completed.status,
+    verified: completed.verified,
+    verifiedType: typeof completed.verified,
   });
 
   // Update user points

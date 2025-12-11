@@ -51,8 +51,8 @@ const initFirebase = () => {
             console.error('❌ Firebase: Error initializing app:', appError);
             throw appError;
         }
-        
-        // Init services (with persistence)
+
+// Init services (with persistence)
         console.log('🔥 Firebase: Initializing auth...');
         try {
             // Try to get existing auth first
@@ -62,8 +62,8 @@ const initFirebase = () => {
             } catch (e) {
                 // If getAuth fails, initialize new auth
                 auth = initializeAuth(app, {
-                    persistence: getReactNativePersistence(AsyncStorage),
-                });
+    persistence: getReactNativePersistence(AsyncStorage),
+});
                 console.log('🔥 Firebase: Auth initialized');
             }
         } catch (authError) {
@@ -71,11 +71,11 @@ const initFirebase = () => {
             throw authError;
         }
 
-        // 🔥 DEV ONLY – helps Expo Go with Recaptcha
-        // Remove this before production!
+// 🔥 DEV ONLY – helps Expo Go with Recaptcha
+// Remove this before production!
         if (auth && auth.settings) {
             console.log('🔥 Firebase: Disabling app verification for testing');
-            auth.settings.appVerificationDisabledForTesting = true;
+auth.settings.appVerificationDisabledForTesting = true;
         }
 
         console.log('🔥 Firebase: Initializing Firestore...');

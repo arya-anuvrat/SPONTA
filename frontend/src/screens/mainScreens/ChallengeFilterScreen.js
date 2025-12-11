@@ -23,6 +23,7 @@ const CATEGORIES = [
     { id: "academic", name: "Academic", icon: "school", color: "#FF9800" },
     { id: "wellness", name: "Wellness", icon: "leaf", color: "#00BCD4" },
     { id: "exploration", name: "Exploration", icon: "map", color: "#E91E63" },
+    { id: "test", name: "Test", icon: "flask", color: "#7b3aed" },
 ];
 
 const DIFFICULTIES = [

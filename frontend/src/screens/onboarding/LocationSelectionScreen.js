@@ -321,7 +321,7 @@ export default function LocationSelectionScreen() {
                     <View style={styles.disclaimerContainer}>
                         <Text style={styles.disclaimerText}>
                             Only neighbourhood name is shown.
-                        </Text>
+            </Text>
                     </View>
                 )}
             </View>
@@ -331,17 +331,17 @@ export default function LocationSelectionScreen() {
                 <Text style={styles.bottomText}>
                     Sponta uses your location to help you say <Text style={styles.boldText}>YES</Text> to life around you
                 </Text>
-                <TouchableOpacity
+            <TouchableOpacity
                     style={[styles.continueButton, (!selectedLocation || loading) && styles.buttonDisabled]}
                     onPress={handleComplete}
                     disabled={!selectedLocation || loading}
-                >
+            >
                     {loading ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
                         <Text style={styles.continueButtonText}>Continue</Text>
                     )}
-                </TouchableOpacity>
+            </TouchableOpacity>
             </View>
         </View>
     );

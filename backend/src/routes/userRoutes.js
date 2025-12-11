@@ -53,4 +53,11 @@ router.post('/friends/accept/:friendUid', authenticateToken, userController.acce
  */
 router.delete('/friends/:friendUid', authenticateToken, userController.removeFriend);
 
+/**
+ * @route   GET /api/users/completion-history
+ * @desc    Get challenge completion history by date
+ * @access  Private
+ */
+router.get('/completion-history', authenticateToken, userController.getCompletionHistory);
+
 module.exports = router;

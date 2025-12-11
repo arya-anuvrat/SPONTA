@@ -50,6 +50,10 @@ const CHALLENGE_CATEGORIES = {
     description: "Discovering new places, trying new things",
     examples: ["new restaurants", "new neighborhoods", "new experiences"],
   },
+  test: {
+    description: "Test category for streak testing - generates drink water challenge",
+    examples: ["drink water"],
+  },
 };
 
 // Difficulty levels and their characteristics
@@ -86,6 +90,8 @@ async function generateChallenge(options = {}) {
   const {
     category,
     difficulty,
+    customDescription,
+    peopleCount,
     userContext = {},
     location = null,
   } = options;
@@ -104,18 +110,28 @@ async function generateChallenge(options = {}) {
       Math.floor(Math.random() * Object.keys(DIFFICULTY_LEVELS).length)
     ];
 
-  // Use our hybrid template system
-  try {
-    const challengeData = await generateFromTemplate(
-      selectedCategory,
-      selectedDifficulty,
-      userContext,
-      location
-    );
+    // Use our hybrid template system
+    try {
+      const challengeData = await generateFromTemplate(
+        selectedCategory,
+        selectedDifficulty,
+        userContext,
+        location,
+        customDescription,
+        peopleCount
+      );
 
-    // Add metadata
-    challengeData.isActive = true;
-    challengeData.isFeatured = false;
+      // Add metadata
+      challengeData.isActive = true;
+      challengeData.isFeatured = false;
+      // For daily challenges, they should count for streak
+      // For regular AI-generated challenges (Sponta AI), they don't count
+      if (options.isDaily) {
+        challengeData.isDaily = true;
+        challengeData.countsForStreak = true; // Daily challenges count for streaks
+      } else {
+        challengeData.countsForStreak = false; // AI-generated challenges don't count for streaks
+      }
 
     // Validate the challenge data
     try {
@@ -309,6 +325,11 @@ async function getOrGenerateDailyChallenge(options = {}) {
   // No cached challenge found, generate a new one
   console.log(`✨ Generating new daily challenge for user ${userId} (date ${dateKey})...`);
   console.log(`📋 Generation options:`, { category, difficulty, hasLocation: !!location, hasUserContext: !!userContext });
+  
+  // If test category is selected, log it clearly
+  if (category === 'test') {
+    console.log(`🧪 TEST MODE: Generating "drink water" challenge for testing`);
+  }
   
   let challenge;
   try {

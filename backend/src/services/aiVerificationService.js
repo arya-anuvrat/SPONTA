@@ -229,8 +229,20 @@ Return ONLY a single JSON object with this exact shape:
       };
     }
 
+    // Ensure verified is a strict boolean true/false
+    let verified = false;
+    if (parsed.verified === true || parsed.verified === "true") {
+      verified = true;
+    } else if (parsed.verified === false || parsed.verified === "false") {
+      verified = false;
+    } else {
+      // Fallback: use truthy check but log warning
+      verified = !!parsed.verified;
+      console.warn('AI returned non-boolean verified value:', parsed.verified, typeof parsed.verified);
+    }
+    
     return {
-      verified: !!parsed.verified,
+      verified: verified, // Explicit boolean
       confidence:
         typeof parsed.confidence === "number"
           ? Math.max(0, Math.min(1, parsed.confidence))

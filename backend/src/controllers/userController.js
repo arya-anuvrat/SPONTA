@@ -147,6 +147,24 @@ const removeFriend = async (req, res, next) => {
   }
 };
 
+/**
+ * Get challenge completion history
+ * GET /api/users/completion-history
+ */
+const getCompletionHistory = async (req, res, next) => {
+  try {
+    const { uid } = req.user;
+    const history = await userService.getChallengeCompletionHistory(uid);
+    
+    res.status(200).json({
+      success: true,
+      data: history,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -155,5 +173,6 @@ module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
   removeFriend,
+  getCompletionHistory,
 };
 

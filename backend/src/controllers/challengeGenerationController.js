@@ -11,13 +11,15 @@ const challengeGenerationService = require("../services/challengeGenerationServi
  */
 const generateChallenge = async (req, res, next) => {
   try {
-    const { category, difficulty } = req.body;
+    const { category, difficulty, customDescription, peopleCount } = req.body;
     const userContext = req.user || {}; // User context if authenticated
     const location = req.body.location || null;
 
     const challenge = await challengeGenerationService.generateAndSaveChallenge({
       category,
       difficulty,
+      customDescription,
+      peopleCount,
       userContext: {
         displayName: userContext.displayName,
         college: userContext.college,

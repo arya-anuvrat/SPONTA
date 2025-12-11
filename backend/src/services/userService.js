@@ -31,6 +31,20 @@ const updateUserProfile = async (uid, updateData) => {
 const getUserStats = async (uid) => {
   const user = await getUserById(uid);
   
+  // Recalculate streak to ensure it's accurate (only counts daily challenges)
+  const { updateStreak } = require('./streakService');
+  let streakData;
+  try {
+    streakData = await updateStreak(uid);
+  } catch (error) {
+    console.warn('Error recalculating streak:', error);
+    // Fallback to user's stored streak
+    streakData = {
+      currentStreak: user.currentStreak || 0,
+      longestStreak: user.longestStreak || 0,
+    };
+  }
+  
   // Get user's challenges
   const allUserChallenges = await getUserChallenges(uid);
   const completedChallenges = allUserChallenges.filter(
@@ -58,8 +72,8 @@ const getUserStats = async (uid) => {
       displayName: user.displayName,
       points: user.points,
       level: user.level,
-      currentStreak: user.currentStreak,
-      longestStreak: user.longestStreak,
+      currentStreak: streakData.currentStreak || 0,
+      longestStreak: streakData.longestStreak || user.longestStreak || 0,
     },
     challenges: {
       total: allUserChallenges.length,
@@ -213,6 +227,60 @@ const removeFriend = async (uid, friendUid) => {
   return { message: 'Friend removed successfully' };
 };
 
+/**
+ * Get challenge completion history by date
+ * Returns a map of dates (YYYY-MM-DD) to completion status
+ * Only includes daily challenges
+ */
+const getChallengeCompletionHistory = async (uid) => {
+  const { getChallengeById } = require('../models/Challenge');
+  const allUserChallenges = await getUserChallenges(uid);
+  
+  // Filter to only completed, verified challenges
+  const completedChallenges = allUserChallenges.filter(
+    uc => uc.status === 'completed' && uc.verified === true && uc.completedAt
+  );
+  
+  // Check which ones are daily challenges
+  const dailyChallengeChecks = await Promise.all(
+    completedChallenges.map(async (uc) => {
+      try {
+        const challenge = await getChallengeById(uc.challengeId);
+        return challenge.isDaily === true ? uc : null;
+      } catch (error) {
+        // If challenge not found, it's not a daily challenge
+        return null;
+      }
+    })
+  );
+  
+  // Filter to only daily challenges
+  const dailyChallenges = dailyChallengeChecks.filter(uc => uc !== null);
+  
+  // Create a map of dates to completion status
+  const completionMap = {};
+  
+  dailyChallenges.forEach(uc => {
+    // Handle Firestore Timestamp
+    let completedDate;
+    if (uc.completedAt?.toDate) {
+      completedDate = uc.completedAt.toDate();
+    } else if (uc.completedAt instanceof Date) {
+      completedDate = uc.completedAt;
+    } else if (typeof uc.completedAt === 'string') {
+      completedDate = new Date(uc.completedAt);
+    } else {
+      return; // Skip if no valid date
+    }
+    
+    // Format as YYYY-MM-DD
+    const dateKey = completedDate.toISOString().split('T')[0];
+    completionMap[dateKey] = true;
+  });
+  
+  return completionMap;
+};
+
 module.exports = {
   getUserProfile,
   updateUserProfile,
@@ -221,5 +289,6 @@ module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
   removeFriend,
+  getChallengeCompletionHistory,
 };
 

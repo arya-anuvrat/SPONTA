@@ -303,7 +303,7 @@ export default function CreateAccountScreen() {
             />
             {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
 
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]} 
                 onPress={handleCreateAccount}
                 disabled={loading}

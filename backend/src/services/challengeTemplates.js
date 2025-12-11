@@ -141,6 +141,16 @@ const CHALLENGE_TEMPLATES = {
     },
   ],
   
+  test: [
+    {
+      template: "drink water",
+      variables: {},
+      basePoints: 10,
+      baseDuration: 5,
+      fixed: true, // This template always generates the same challenge
+    },
+  ],
+  
   exploration: [
     {
       template: "Try {new_experience} at {location_type} and {documentation}",
@@ -203,9 +213,33 @@ function fillTemplateVariables(template, useAI = true) {
 /**
  * Generate challenge using template + AI enhancement
  */
-async function generateFromTemplate(category, difficulty, userContext = {}, location = null) {
+async function generateFromTemplate(category, difficulty, userContext = {}, location = null, customDescription = null, peopleCount = null) {
   // Select template
   const template = selectTemplate(category);
+  
+  // Log if test category is being used
+  if (category === 'test') {
+    console.log(`🧪 TEST CATEGORY: Selected template:`, template);
+  }
+  
+  // For fixed templates (like test category), return directly without AI enhancement
+  if (template.fixed) {
+    // Capitalize first letter of title
+    const title = template.template.charAt(0).toUpperCase() + template.template.slice(1);
+    console.log(`🧪 FIXED TEMPLATE: Generating challenge with title: "${title}"`);
+    return {
+      title: title,
+      description: template.template + " solo",
+      category: category,
+      difficulty: difficulty || "easy",
+      points: template.basePoints || 10,
+      duration: template.baseDuration || 5,
+      requiresPhoto: true,
+      requiresLocation: false,
+      frequency: "daily",
+      location: { type: "anywhere" },
+    };
+  }
   
   // Fill basic variables
   const { filledText, variables } = fillTemplateVariables(template);
@@ -218,6 +252,8 @@ async function generateFromTemplate(category, difficulty, userContext = {}, loca
     variables,
     userContext,
     location,
+    customDescription,
+    peopleCount,
   });
   
   // Calculate points and duration
@@ -242,7 +278,7 @@ async function generateFromTemplate(category, difficulty, userContext = {}, loca
 /**
  * Enhance template with AI to make it more creative
  */
-async function enhanceWithAI({ baseText, category, difficulty, variables, userContext, location }) {
+async function enhanceWithAI({ baseText, category, difficulty, variables, userContext, location, customDescription, peopleCount }) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   
   if (!process.env.GEMINI_API_KEY) {
@@ -268,12 +304,16 @@ DIFFICULTY: ${difficulty}
 VARIABLES USED: ${JSON.stringify(variables)}
 ${userContext.displayName ? `USER: ${userContext.displayName}` : ""}
 ${location ? `LOCATION: ${location.city || ""}, ${location.state || ""}` : ""}
+${customDescription ? `USER'S CUSTOM REQUEST: "${customDescription}"` : ""}
+${peopleCount ? `NUMBER OF PEOPLE: ${peopleCount}` : ""}
 
 Enhance this challenge template to make it:
 1. More specific and actionable
 2. More engaging and fun
 3. Unique and creative
 4. Appropriate for a college student
+${customDescription ? "5. Incorporate the user's custom request/description into the challenge" : ""}
+${peopleCount ? `6. Make it suitable for ${peopleCount} people` : ""}
 
 Return ONLY a JSON object:
 {

@@ -247,18 +247,18 @@ export default function MyChallengeDetailScreen() {
                 </View>
 
                     {/* Verify Button */}
-                    <View style={styles.buttonSection}>
+                <View style={styles.buttonSection}>
                         {!photo ? (
-                            <TouchableOpacity
-                                style={styles.verifyBtn}
+                    <TouchableOpacity
+                        style={styles.verifyBtn}
                                 onPress={() => navigation.navigate("CameraVerification", {
                                     challenge,
                                     fromDaily: false,
                                 })}
-                            >
+                    >
                                 <Ionicons name="camera" size={20} color="#fff" />
-                                <Text style={styles.btnText}>Verify Challenge</Text>
-                            </TouchableOpacity>
+                        <Text style={styles.btnText}>Verify Challenge</Text>
+                    </TouchableOpacity>
                         ) : (
                             <>
                                 <TouchableOpacity
@@ -267,12 +267,12 @@ export default function MyChallengeDetailScreen() {
                                 >
                                     <Text style={styles.retakeBtnText}>Retake Photo</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity
+                    <TouchableOpacity
                                     style={[
                                         styles.completeBtn,
                                         (uploading || completing) && styles.buttonDisabled,
                                     ]}
-                                    onPress={handleComplete}
+                        onPress={handleComplete}
                                     disabled={uploading || completing}
                                 >
                                     {completing || uploading ? (
@@ -280,10 +280,10 @@ export default function MyChallengeDetailScreen() {
                                     ) : (
                                         <Text style={styles.btnText}>Submit for Verification</Text>
                                     )}
-                                </TouchableOpacity>
+                    </TouchableOpacity>
                             </>
                         )}
-                    </View>
+                </View>
             </ScrollView>
 
             <BottomBar />

@@ -42,14 +42,14 @@ export const AuthProvider = ({ children }) => {
       }
       
       // Set up auth listener with immediate callback
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (__DEV__) {
           console.log('🔐 AuthProvider: Auth state changed, user:', user ? user.uid : 'null');
         }
-        setCurrentUser(user);
-        setLoading(false);
+      setCurrentUser(user);
+      setLoading(false);
         clearTimeout(timeout);
-      }, (error) => {
+    }, (error) => {
         console.error('❌ AuthProvider: Auth state change error:', error);
         setLoading(false);
         clearTimeout(timeout);

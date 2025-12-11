@@ -219,6 +219,14 @@ export const userAPI = {
       token,
     });
   },
+
+  // GET /api/users/completion-history
+  getCompletionHistory: async (token) => {
+    return apiRequest('/users/completion-history', {
+      method: 'GET',
+      token,
+    });
+  },
 };
 
 /**

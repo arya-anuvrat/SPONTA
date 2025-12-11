@@ -127,27 +127,27 @@ export default function PhoneVerificationScreen() {
                 We've sent a 6-digit code to {formatPhoneNumber(phone)}
             </Text>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Enter 6-digit code"
-                keyboardType="number-pad"
-                maxLength={6}
-                value={code}
-                onChangeText={setCode}
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Enter 6-digit code"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        value={code}
+                        onChangeText={setCode}
                 editable={!loading && !sending}
-            />
+                    />
 
-            <TouchableOpacity
+                    <TouchableOpacity
                 style={[styles.button, (loading || sending) && styles.buttonDisabled]}
                 onPress={handleVerifyCode}
                 disabled={loading || sending || !confirmationResult}
-            >
+                    >
                 {loading ? (
                     <ActivityIndicator color="#fff" />
                 ) : (
-                    <Text style={styles.buttonText}>Verify</Text>
+                        <Text style={styles.buttonText}>Verify</Text>
                 )}
-            </TouchableOpacity>
+                    </TouchableOpacity>
 
             <TouchableOpacity
                 style={[styles.resendButton, countdown > 0 && styles.buttonDisabled]}

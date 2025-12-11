@@ -230,6 +230,8 @@ const getDailyChallenge = async (req, res, next) => {
     // Get user's timezone and forceRegenerate from query parameters
     const userTimezone = req.query.timezone || 'UTC';
     const forceRegenerate = req.query.forceRegenerate || 'false';
+    // Allow category to be passed as query parameter for testing
+    const categoryFromQuery = req.query.category || null;
     
     // Fetch full user profile to get preferences and location
     let userProfile = null;
@@ -253,10 +255,19 @@ const getDailyChallenge = async (req, res, next) => {
     
     // Get user preferences (categories, difficulty) from profile
     // User can select multiple categories, we'll pick one randomly or use first one
+    // But if category is passed as query parameter, use that instead (for testing)
+    // Also prioritize "test" category if it's in the user's preferences (for testing)
     const preferredCategories = userProfile?.preferredCategories || [];
-    const category = preferredCategories.length > 0 
-        ? preferredCategories[Math.floor(Math.random() * preferredCategories.length)]
-        : null;
+    let category = categoryFromQuery;
+    if (!category && preferredCategories.length > 0) {
+      // If "test" is in preferences, prioritize it for testing
+      if (preferredCategories.includes('test')) {
+        category = 'test';
+        console.log('🧪 TEST category found in preferences, using it for daily challenge');
+      } else {
+        category = preferredCategories[Math.floor(Math.random() * preferredCategories.length)];
+      }
+    }
     const difficulty = userProfile?.preferredDifficulty || null;
     
     // Generate daily challenge using AI (service handles caching per day)
