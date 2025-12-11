@@ -5,10 +5,13 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { signOut } from "firebase/auth";
+import { auth } from "../../services/firebase";
 
 export default function ProfileScreen() {
     const navigation = useNavigation();
@@ -150,11 +153,39 @@ export default function ProfileScreen() {
                 {/* LOGOUT */}
                 <TouchableOpacity
                     style={styles.logoutButton}
-                    onPress={() => {
-                        navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Landing" }],
-                        });
+                    onPress={async () => {
+                        Alert.alert(
+                            "Log Out",
+                            "Are you sure you want to log out?",
+                            [
+                                {
+                                    text: "Cancel",
+                                    style: "cancel",
+                                },
+                                {
+                                    text: "Log Out",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                        try {
+                                            // Sign out from Firebase
+                                            if (auth && auth.currentUser) {
+                                                await signOut(auth);
+                                                console.log("✅ Signed out from Firebase");
+                                            }
+                                        } catch (error) {
+                                            console.error("Error signing out:", error);
+                                            Alert.alert("Error", "Failed to sign out. Please try again.");
+                                            return;
+                                        }
+                                        // Navigate to landing screen
+                                        navigation.reset({
+                                            index: 0,
+                                            routes: [{ name: "Landing" }],
+                                        });
+                                    },
+                                },
+                            ]
+                        );
                     }}
                 >
                     <Text style={styles.logoutText}>Log Out</Text>

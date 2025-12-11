@@ -7,7 +7,10 @@ export default function LandingScreen() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.logo}>SPONTA</Text>
+            <View style={styles.logoContainer}>
+                <Text style={styles.logoS}>S</Text>
+                <Text style={styles.logoPonta}>ponta</Text>
+            </View>
             <Text style={styles.slogan}>
                 Seek Discomfort. Start Spontaneously.
             </Text>
@@ -39,11 +42,20 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         paddingHorizontal: 30,
     },
-    logo: {
+    logoContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+    },
+    logoS: {
+        fontSize: 48,
+        fontWeight: "800",
+        color: "#000",
+    },
+    logoPonta: {
         fontSize: 48,
         fontWeight: "800",
         color: "#7b3aed",
-        marginBottom: 10,
     },
     slogan: {
         fontSize: 16,

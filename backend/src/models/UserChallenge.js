@@ -120,22 +120,26 @@ const updateUserChallenge = async (userChallengeId, updateData) => {
 
 /**
  * Complete a user challenge — now supports AI verification pipeline
+ * Only marks as COMPLETED if verified is true, otherwise keeps as ACCEPTED
  */
 const completeUserChallenge = async (userChallengeId, completionData) => {
+  const isVerified = completionData.verified === true;
+  
   const updateDoc = {
-    status: USER_CHALLENGE_STATUS.COMPLETED,
-    completedAt: new Date(),
+    // Only mark as completed if verified, otherwise keep as accepted
+    status: isVerified ? USER_CHALLENGE_STATUS.COMPLETED : USER_CHALLENGE_STATUS.ACCEPTED,
+    completedAt: isVerified ? new Date() : null,
 
     // Values sent from Challenge Service
     photoUrl: completionData.photoUrl || null,
     location: completionData.location || null,
 
     // AI verification fields
-    verified: completionData.verified || false,
-    verifiedAt: completionData.verified ? new Date() : null,
-    verifiedBy: completionData.verifiedBy || null,
+    verified: isVerified,
+    verifiedAt: isVerified ? new Date() : null,
+    verifiedBy: isVerified ? (completionData.verifiedBy || null) : null,
 
-    pointsEarned: completionData.pointsEarned || 0,
+    pointsEarned: isVerified ? (completionData.pointsEarned || 0) : 0,
     updatedAt: new Date(),
   };
 

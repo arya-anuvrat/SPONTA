@@ -12,6 +12,7 @@ const {
   CHALLENGE_TEMPLATES,
   DIFFICULTY_MULTIPLIERS,
 } = require("./challengeTemplates");
+const { db, admin } = require("../config/firebase");
 
 // Gemini client (only if API key is set)
 let genAI = null;
@@ -140,16 +141,31 @@ async function generateChallenge(options = {}) {
  */
 async function generateAndSaveChallenge(options = {}) {
   try {
+    console.log('🔄 Starting challenge generation...', { category: options.category, difficulty: options.difficulty });
+    
     // Generate challenge using AI
     const challengeData = await generateChallenge(options);
+    
+    if (!challengeData) {
+      throw new Error("Challenge generation returned null or undefined");
+    }
+    
+    console.log('✅ Challenge generated, saving to database...');
 
     // Save to database
     const challenge = await createChallenge(challengeData);
-
+    
+    if (!challenge || !challenge.id) {
+      throw new Error("Failed to save challenge to database");
+    }
+    
+    console.log('✅ Challenge saved successfully:', challenge.id);
     return challenge;
   } catch (error) {
-    console.error("Error generating and saving challenge:", error);
-    throw error;
+    console.error("❌ Error generating and saving challenge:", error);
+    console.error("❌ Error stack:", error.stack);
+    // Re-throw with more context
+    throw new Error(`Failed to generate challenge: ${error.message}`);
   }
 }
 
@@ -187,10 +203,158 @@ async function generateMultipleChallenges(count = 5, options = {}) {
   };
 }
 
+/**
+ * Get or generate today's daily challenge for a user
+ * Caches the challenge per day based on user preferences and location
+ * 
+ * @param {Object} options - Generation options
+ * @param {string} options.userId - User ID
+ * @param {string} options.category - Preferred category (optional)
+ * @param {string} options.difficulty - Preferred difficulty (optional)
+ * @param {Object} options.location - User location (optional)
+ * @param {string} options.timezone - User's timezone (e.g., 'America/New_York') (optional, defaults to UTC)
+ * @param {Object} options.userContext - User context for personalization
+ * @returns {Object} Daily challenge object
+ */
+async function getOrGenerateDailyChallenge(options = {}) {
+  const {
+    userId,
+    category,
+    difficulty,
+    location,
+    timezone = 'UTC',
+    forceRegenerate = false,
+    userContext = {},
+  } = options;
+
+  // Get today's date in user's timezone as a string key (YYYY-MM-DD)
+  // This ensures the challenge resets at midnight in the user's local time
+  let dateKey;
+  try {
+    // Use Intl.DateTimeFormat to get date in user's timezone
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    dateKey = formatter.format(now); // Returns YYYY-MM-DD format
+  } catch (error) {
+    console.warn('Invalid timezone, using UTC:', timezone, error);
+    // Fallback to UTC if timezone is invalid
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    dateKey = today.toISOString().split('T')[0];
+  }
+  
+  // Check if daily challenge already exists for today
+  // If forceRegenerate is true, skip cache check and generate new challenge
+  if (userId && !options.forceRegenerate) {
+    try {
+      const dailyChallengeRef = db.collection('dailyChallenges')
+        .where('userId', '==', userId)
+        .where('date', '==', dateKey)
+        .limit(1);
+      
+      const snapshot = await dailyChallengeRef.get();
+      
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        const cachedChallenge = doc.data();
+        
+        // Get the full challenge details
+        if (cachedChallenge.challengeId) {
+          const challengeRef = db.collection('challenges').doc(cachedChallenge.challengeId);
+          const challengeDoc = await challengeRef.get();
+          
+          if (challengeDoc.exists) {
+            console.log(`✅ Using cached daily challenge for user ${userId} (date ${dateKey})`);
+            return {
+              id: challengeDoc.id,
+              ...challengeDoc.data(),
+            };
+          } else {
+            // Cached challenge ID doesn't exist anymore, delete the cache and generate new one
+            console.warn(`⚠️ Cached challenge ID ${cachedChallenge.challengeId} not found in 'challenges' collection. Deleting invalid cache entry.`);
+            await doc.ref.delete();
+            // Continue to generate new challenge below
+          }
+        } else {
+          // Cache entry has no challengeId, delete it
+          console.warn(`⚠️ Cached daily challenge for user ${userId} (date ${dateKey}) has no challengeId. Deleting invalid cache entry.`);
+          await doc.ref.delete();
+          // Continue to generate new challenge below
+        }
+      }
+    } catch (error) {
+      console.warn('Error checking cached daily challenge:', error);
+      // Continue to generate new challenge
+    }
+  } else if (options.forceRegenerate) {
+    console.log(`🔄 Force regenerating daily challenge for user ${userId} (date ${dateKey})...`);
+    // Delete existing cache for today if force regenerating
+    try {
+      const dailyChallengeRef = db.collection('dailyChallenges')
+        .where('userId', '==', userId)
+        .where('date', '==', dateKey);
+      const snapshot = await dailyChallengeRef.get();
+      snapshot.docs.forEach(doc => doc.ref.delete());
+      console.log(`🗑️ Deleted existing cache for user ${userId} (date ${dateKey})`);
+    } catch (error) {
+      console.warn('Error deleting existing cache:', error);
+    }
+  }
+
+  // No cached challenge found, generate a new one
+  console.log(`✨ Generating new daily challenge for user ${userId} (date ${dateKey})...`);
+  console.log(`📋 Generation options:`, { category, difficulty, hasLocation: !!location, hasUserContext: !!userContext });
+  
+  let challenge;
+  try {
+    challenge = await generateAndSaveChallenge({
+      category,
+      difficulty,
+      userContext,
+      location,
+      isDaily: true, // Mark as daily challenge
+    });
+  } catch (genError) {
+    console.error(`❌ Failed to generate challenge for user ${userId}:`, genError);
+    throw new Error(`Failed to generate daily challenge: ${genError.message}`);
+  }
+
+  if (!challenge || !challenge.id) {
+    console.error(`❌ Generated challenge is invalid:`, challenge);
+    throw new Error("Generated challenge is missing ID or data");
+  }
+  
+  console.log(`✅ Successfully generated challenge ${challenge.id} for user ${userId}`);
+
+  // Cache the daily challenge if user is logged in
+  if (userId && challenge.id) {
+    try {
+      await db.collection('dailyChallenges').add({
+        userId,
+        challengeId: challenge.id,
+        date: dateKey,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log(`💾 Daily challenge cached for user ${userId} (date ${dateKey})`);
+    } catch (error) {
+      console.warn('Error caching daily challenge:', error);
+      // Continue even if caching fails
+    }
+  }
+
+  return challenge;
+}
+
 module.exports = {
   generateChallenge,
   generateAndSaveChallenge,
   generateMultipleChallenges,
+  getOrGenerateDailyChallenge,
   CHALLENGE_CATEGORIES,
   DIFFICULTY_LEVELS,
   // Export template system for future customization

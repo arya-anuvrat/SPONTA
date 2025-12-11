@@ -5,91 +5,154 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Image,
     Alert,
+    ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../services/firebase";
+import { authAPI } from "../../services/api";
+import { validateEmail } from "../../utils/validators";
 
 export default function SignInScreen() {
     const navigation = useNavigation();
-    const [phone, setPhone] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [emailError, setEmailError] = useState("");
 
-    // 🧠 Format input into (XXX) XXX-XXXX as user types
-    const formatPhone = (input) => {
-        const digits = input.replace(/\D/g, "").slice(0, 10);
-        if (digits.length < 4) return digits;
-        if (digits.length < 7)
-            return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(
-            6
-        )}`;
+    const handleEmailChange = (text) => {
+        setEmail(text);
+        if (text) {
+            const validation = validateEmail(text);
+            setEmailError(validation.valid ? "" : validation.error);
+        } else {
+            setEmailError("");
+        }
     };
 
-    const handlePhoneChange = (text) => setPhone(formatPhone(text));
-
-    const handleContinuePhone = () => {
-        const cleaned = phone.replace(/\D/g, "");
-        if (cleaned.length !== 10) {
-            Alert.alert(
-                "Invalid Number",
-                "Please enter a valid 10-digit U.S. number."
-            );
+    const handleSignIn = async () => {
+        if (!email.trim() || !password.trim()) {
+            Alert.alert("Error", "Please enter both email and password.");
             return;
         }
-        Alert.alert("Mock Mode", "Simulating phone sign-in success!");
-        navigation.navigate("Home");
-    };
 
-    const handleGoogleSignIn = () => {
-        Alert.alert("Mock Mode", "Simulating Google Sign-In success!");
-        navigation.navigate("Home");
+        // Validate email format
+        const emailValidation = validateEmail(email);
+        if (!emailValidation.valid) {
+            setEmailError(emailValidation.error);
+            Alert.alert("Validation Error", emailValidation.error);
+            return;
+        }
+
+        if (password.length < 6) {
+            Alert.alert("Error", "Password must be at least 6 characters.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // Check if Firebase auth is initialized
+            if (!auth) {
+                throw new Error("Firebase authentication is not initialized. Please check your Firebase configuration.");
+            }
+
+            // Normalize email to lowercase and trim
+            const normalizedEmail = email.trim().toLowerCase();
+            
+            // Sign in with Firebase
+            const userCredential = await signInWithEmailAndPassword(
+                auth,
+                normalizedEmail,
+                password
+            );
+            
+            // Get Firebase ID token
+            const idToken = await userCredential.user.getIdToken();
+            
+            // Call backend API to sign in
+            const response = await authAPI.signin(idToken);
+            
+            if (response.success) {
+                // Navigation will happen automatically via AuthContext
+                navigation.navigate("Home");
+            } else {
+                throw new Error(response.message || "Sign in failed");
+            }
+        } catch (error) {
+            console.error("Sign in error:", error);
+            let errorMessage = "Failed to sign in. Please try again.";
+            
+            if (error.code === "auth/user-not-found") {
+                errorMessage = "No account found with this email.";
+            } else if (error.code === "auth/wrong-password") {
+                errorMessage = "Incorrect password.";
+            } else if (error.code === "auth/invalid-email") {
+                errorMessage = "Invalid email address.";
+            } else if (error.code === "auth/invalid-credential") {
+                errorMessage = "Invalid email or password. Please check your credentials and try again.";
+            } else if (error.code === "auth/network-request-failed") {
+                errorMessage = "Network error. Please check your connection.";
+            } else if (error.code === "auth/too-many-requests") {
+                errorMessage = "Too many failed attempts. Please try again later.";
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            Alert.alert("Sign In Failed", errorMessage);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleCreateAccount = () => navigation.navigate("CreateAccount");
 
     return (
         <View style={styles.container}>
-            <Text style={styles.logo}>SPONTA</Text>
+            <View style={styles.logoContainer}>
+                <Text style={styles.logoS}>S</Text>
+                <Text style={styles.logoPonta}>ponta</Text>
+            </View>
+            <Text style={styles.seekDiscomfort}>SEEK DISCOMFORT</Text>
             <Text style={styles.tagline}>
-                Seek Discomfort. Stay Spontaneous.
+                Stay Spontaneous.
             </Text>
 
-            <View style={styles.phoneContainer}>
-                <Text style={styles.prefix}>+1</Text>
+            <View>
                 <TextInput
-                    style={styles.input}
-                    placeholder="(555) 123-4567"
-                    keyboardType="number-pad"
-                    maxLength={14}
-                    value={phone}
-                    onChangeText={handlePhoneChange}
+                    style={[styles.input, emailError && styles.inputError]}
+                    placeholder="Email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    editable={!loading}
                 />
+                {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
             </View>
 
-            <TouchableOpacity
-                style={styles.continueButton}
-                onPress={handleContinuePhone}
-            >
-                <Text style={styles.continueText}>Continue with Phone</Text>
-            </TouchableOpacity>
-
-            <View style={styles.dividerContainer}>
-                <View style={styles.line} />
-                <Text style={styles.orText}>OR</Text>
-                <View style={styles.line} />
-            </View>
+            <TextInput
+                style={styles.input}
+                placeholder="Password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={password}
+                onChangeText={setPassword}
+                editable={!loading}
+            />
 
             <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleGoogleSignIn}
+                style={[styles.continueButton, loading && styles.buttonDisabled]}
+                onPress={handleSignIn}
+                disabled={loading}
             >
-                <Image
-                    source={{
-                        uri: "https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png",
-                    }}
-                    style={styles.googleIcon}
-                />
-                <Text style={styles.googleText}>Continue with Google</Text>
+                {loading ? (
+                    <ActivityIndicator color="#fff" />
+                ) : (
+                    <Text style={styles.continueText}>Sign In</Text>
+                )}
             </TouchableOpacity>
 
             <Text style={styles.footer}>
@@ -111,41 +174,56 @@ const styles = StyleSheet.create({
     },
 
     // 🔹 Header
-    logo: {
+    logoContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 6,
+    },
+    logoS: {
+        fontSize: 44,
+        fontWeight: "800",
+        color: "#000",
+    },
+    logoPonta: {
         fontSize: 44,
         fontWeight: "800",
         color: "#7b3aed",
+    },
+    seekDiscomfort: {
+        fontSize: 32,
+        fontWeight: "900",
+        color: "#000",
         textAlign: "center",
-        marginBottom: 6,
+        marginBottom: 10,
+        letterSpacing: 1,
     },
     tagline: {
         fontSize: 14,
         color: "#666",
         textAlign: "center",
-        marginBottom: 40,
+        marginBottom: 30,
     },
 
-    // 🔹 Phone Input
-    phoneContainer: {
-        flexDirection: "row",
-        alignItems: "center",
+    // 🔹 Input
+    input: {
         borderWidth: 1,
         borderColor: "#ccc",
         borderRadius: 10,
-        paddingHorizontal: 15,
-        marginBottom: 20,
-    },
-    prefix: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#7b3aed",
-        marginRight: 10,
-    },
-    input: {
-        flex: 1,
         paddingVertical: 12,
+        paddingHorizontal: 15,
         fontSize: 16,
         color: "#222",
+        marginBottom: 5,
+    },
+    inputError: {
+        borderColor: "#ff4444",
+    },
+    errorText: {
+        color: "#ff4444",
+        fontSize: 12,
+        marginBottom: 10,
+        marginLeft: 5,
     },
 
     // 🔹 Continue Button
@@ -156,48 +234,13 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 25,
     },
+    buttonDisabled: {
+        opacity: 0.6,
+    },
     continueText: {
         color: "#fff",
         fontSize: 16,
         fontWeight: "600",
-    },
-
-    // 🔹 Divider
-    dividerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 25,
-    },
-    line: {
-        flex: 1,
-        height: 1,
-        backgroundColor: "#ddd",
-    },
-    orText: {
-        marginHorizontal: 10,
-        color: "#999",
-        fontSize: 14,
-    },
-
-    // 🔹 Google Button
-    googleButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#ccc",
-        borderRadius: 10,
-        justifyContent: "center",
-        paddingVertical: 14,
-    },
-    googleIcon: {
-        width: 22,
-        height: 22,
-        marginRight: 10,
-    },
-    googleText: {
-        fontSize: 16,
-        color: "#333",
-        fontWeight: "500",
     },
 
     // 🔹 Footer
