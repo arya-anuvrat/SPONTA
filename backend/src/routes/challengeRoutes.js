@@ -59,9 +59,17 @@ router.get('/nearby', optionalAuth, challengeController.getNearbyChallenges);
 router.get('/my', authenticateToken, challengeController.getMyChallenges);
 
 /**
+ * @route   GET /api/challenges/daily
+ * @desc    Get today's daily challenge (cached per day, based on user preferences)
+ * @access  Private
+ */
+router.get('/daily', authenticateToken, challengeController.getDailyChallenge);
+
+/**
  * @route   GET /api/challenges/:id
  * @desc    Get challenge by ID
  * @access  Public (optional auth)
+ * @note    This must come AFTER all specific routes like /daily, /my, etc.
  */
 router.get('/:id', optionalAuth, challengeController.getChallengeById);
 

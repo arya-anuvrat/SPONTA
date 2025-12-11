@@ -1,0 +1,50 @@
+{
+  "api": {
+    "baseUrl": "http://localhost:3000/api",
+    "productionUrl": "https://your-backend-url.com/api",
+    "endpoints": {
+      "health": "/health",
+      "auth": {
+        "signup": "/auth/signup",
+        "signin": "/auth/signin",
+        "me": "/auth/me",
+        "verifyPhone": "/auth/verify-phone",
+        "refreshToken": "/auth/refresh-token"
+      },
+      "users": {
+        "profile": "/users/profile",
+        "stats": "/users/stats",
+        "friends": "/users/friends"
+      },
+      "challenges": {
+        "getAll": "/challenges",
+        "getById": "/challenges/:id",
+        "nearby": "/challenges/nearby",
+        "accept": "/challenges/:id/accept",
+        "complete": "/challenges/:id/complete"
+      },
+      "events": {
+        "getAll": "/events",
+        "getById": "/events/:id",
+        "nearby": "/events/nearby",
+        "create": "/events",
+        "join": "/events/:id/join",
+        "leave": "/events/:id/leave"
+      }
+    }
+  },
+  "firebase": {
+    "config": {
+      "apiKey": "${EXPO_PUBLIC_FIREBASE_API_KEY}",
+      "authDomain": "${EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN}",
+      "projectId": "${EXPO_PUBLIC_FIREBASE_PROJECT_ID}",
+      "storageBucket": "${EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET}",
+      "messagingSenderId": "${EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}",
+      "appId": "${EXPO_PUBLIC_FIREBASE_APP_ID}"
+    }
+  }
+}
+
+
+
+

@@ -2,6 +2,12 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AuthProvider } from "./src/context/AuthContext";
+
+// Debug logging
+if (__DEV__) {
+  console.log('🚀 App.js: Module loaded');
+}
+
 import LandingScreen from "./src/screens/onboarding/LandingScreen";
 import SignInScreen from "./src/screens/onboarding/SignInScreen";
 import CreateAccountScreen from "./src/screens/onboarding/CreateAccountScreen";
@@ -9,11 +15,15 @@ import PhoneVerificationScreen from "./src/screens/onboarding/PhoneVerificationS
 import NameInputScreen from "./src/screens/onboarding/NameInputScreen";
 import DateOfBirthScreen from "./src/screens/onboarding/DateOfBirthScreen";
 import LocationSelectionScreen from "./src/screens/onboarding/LocationSelectionScreen";
+import ChallengePreferencesScreen from "./src/screens/onboarding/ChallengePreferencesScreen";
 import HomeScreen from "./src/screens/mainScreens/HomeScreen";
 import ChallengeScreen from "./src/screens/mainScreens/ChallengeScreen";
 import ChallengeDetailScreen from "./src/screens/mainScreens/ChallengeDetailScreen";
 import MyChallengesScreen from "./src/screens/mainScreens/MyChallengesScreen";
 import MyChallengeDetailScreen from "./src/screens/mainScreens/MyChallengeDetailScreen";
+import DailyChallengeScreen from "./src/screens/mainScreens/DailyChallengeScreen";
+import ChallengeFilterScreen from "./src/screens/mainScreens/ChallengeFilterScreen";
+import CameraVerificationScreen from "./src/screens/mainScreens/CameraVerificationScreen";
 import { OnboardingProvider } from "./src/context/OnboardingContext";
 import ProfileScreen from "./src/screens/mainScreens/ProfileScreen";
 import EditProfileScreen from "./src/screens/mainScreens/EditProfileScreen";
@@ -25,10 +35,21 @@ import ContactUsScreen from "./src/screens/mainScreens/ContactUsScreen";
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-    return (
-        <AuthProvider>
-            <OnboardingProvider>
-                <NavigationContainer>
+    if (__DEV__) {
+        console.log('🚀 App.js: Rendering App component');
+    }
+
+    try {
+        return (
+            <AuthProvider>
+                <OnboardingProvider>
+                    <NavigationContainer
+                        onReady={() => {
+                            if (__DEV__) {
+                                console.log('🚀 App.js: Navigation ready');
+                            }
+                        }}
+                    >
                     <Stack.Navigator
                         initialRouteName="Landing"
                         screenOptions={{
@@ -60,11 +81,27 @@ export default function App() {
                             name="LocationSelection"
                             component={LocationSelectionScreen}
                         />
-                        <Stack.Screen name="Home" component={HomeScreen} />
                         <Stack.Screen
-                            name="Challenges"
-                            component={ChallengeScreen}
+                            name="ChallengePreferences"
+                            component={ChallengePreferencesScreen}
                         />
+                        <Stack.Screen name="Home" component={HomeScreen} />
+                                <Stack.Screen
+                                    name="DailyChallenge"
+                                    component={DailyChallengeScreen}
+                                />
+                                <Stack.Screen
+                                    name="ChallengeFilter"
+                                    component={ChallengeFilterScreen}
+                                />
+                                <Stack.Screen
+                                    name="CameraVerification"
+                                    component={CameraVerificationScreen}
+                                />
+                                <Stack.Screen
+                                    name="Challenges"
+                                    component={ChallengeScreen}
+                                />
                         <Stack.Screen
                             name="ChallengeDetails"
                             component={ChallengeDetailScreen}
@@ -102,8 +139,12 @@ export default function App() {
                             component={ContactUsScreen}
                         />
                     </Stack.Navigator>
-                </NavigationContainer>
-            </OnboardingProvider>
-        </AuthProvider>
-    );
+                    </NavigationContainer>
+                </OnboardingProvider>
+            </AuthProvider>
+        );
+    } catch (error) {
+        console.error('❌ App.js: Fatal error rendering app:', error);
+        throw error;
+    }
 }

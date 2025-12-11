@@ -3,7 +3,9 @@
  */
 
 const challengeService = require('../services/challengeService');
+const challengeGenerationService = require('../services/challengeGenerationService');
 const { validatePagination } = require('../utils/validators');
+const { getUserById } = require('../models/User');
 
 /**
  * Get all challenges
@@ -50,6 +52,19 @@ const getAllChallenges = async (req, res, next) => {
 const getChallengeById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    
+    console.log(`🔍 getChallengeById called with id: ${id}`);
+    
+    // Prevent reserved route names from being treated as IDs
+    const reservedRoutes = ['daily', 'my', 'nearby', 'categories', 'generate'];
+    if (reservedRoutes.includes(id)) {
+      console.error(`❌ ERROR: Reserved route "${id}" was matched by /:id route instead of its specific route!`);
+      return res.status(404).json({
+        success: false,
+        message: `Route /${id} is a reserved endpoint. Use the correct endpoint path.`,
+      });
+    }
+    
     const challenge = await challengeService.getChallenge(id);
     
     res.status(200).json({
@@ -195,6 +210,108 @@ const getCategories = async (req, res, next) => {
   }
 };
 
+/**
+ * Get today's daily challenge (cached per day, based on user preferences and location)
+ * GET /api/challenges/daily
+ */
+const getDailyChallenge = async (req, res, next) => {
+  console.log('✅ getDailyChallenge called - this is the correct route handler');
+  try {
+    const { uid } = req.user || {};
+    
+    if (!uid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'User authentication required',
+      });
+    }
+    
+    // Get user's timezone and forceRegenerate from query parameters
+    const userTimezone = req.query.timezone || 'UTC';
+    const forceRegenerate = req.query.forceRegenerate || 'false';
+    
+    // Fetch full user profile to get preferences and location
+    let userProfile = null;
+    try {
+      userProfile = await getUserById(uid);
+    } catch (error) {
+      console.warn('Could not fetch user profile:', error);
+    }
+    
+    // Get user location from profile
+    let location = null;
+    if (userProfile?.location) {
+      const locationStr = userProfile.location;
+      if (typeof locationStr === 'string' && locationStr.includes(',')) {
+        const [lat, lng] = locationStr.split(',').map(Number);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          location = { latitude: lat, longitude: lng };
+        }
+      }
+    }
+    
+    // Get user preferences (categories, difficulty) from profile
+    // User can select multiple categories, we'll pick one randomly or use first one
+    const preferredCategories = userProfile?.preferredCategories || [];
+    const category = preferredCategories.length > 0 
+        ? preferredCategories[Math.floor(Math.random() * preferredCategories.length)]
+        : null;
+    const difficulty = userProfile?.preferredDifficulty || null;
+    
+    // Generate daily challenge using AI (service handles caching per day)
+    console.log(`📅 Getting daily challenge for user ${uid}, timezone: ${userTimezone}, forceRegenerate: ${forceRegenerate}`);
+    
+    let challenge;
+    try {
+      challenge = await challengeGenerationService.getOrGenerateDailyChallenge({
+        userId: uid,
+        category,
+        difficulty,
+        location,
+        timezone: userTimezone,
+        forceRegenerate: forceRegenerate === 'true', // Convert string to boolean
+        userContext: {
+          displayName: userProfile?.displayName || req.user?.displayName,
+          college: userProfile?.college || req.user?.college,
+        },
+      });
+    } catch (genError) {
+      console.error(`❌ Error generating daily challenge for user ${uid}:`, genError);
+      console.error(`❌ Error stack:`, genError.stack);
+      return res.status(500).json({
+        success: false,
+        message: genError.message || "Failed to generate daily challenge. Please try again.",
+      });
+    }
+    
+    if (!challenge) {
+      console.error(`❌ Challenge is null for user ${uid}`);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate daily challenge. Please try again.",
+      });
+    }
+
+    console.log(`✅ Returning daily challenge for user ${uid}:`, challenge.id);
+    res.status(200).json({
+      success: true,
+      data: challenge,
+    });
+  } catch (error) {
+    console.error('❌ Unexpected error in getDailyChallenge:', error);
+    console.error('❌ Error stack:', error.stack);
+    // If challenge generation fails, return a helpful error
+    if (error.message && (error.message.includes('Failed to generate') || error.message.includes('Challenge'))) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to generate daily challenge. Please try again.",
+      });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getAllChallenges,
   getChallengeById,
@@ -204,5 +321,6 @@ module.exports = {
   getMyChallenges,
   getChallengeProgress,
   getCategories,
+  getDailyChallenge,
 };
 

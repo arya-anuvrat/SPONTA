@@ -34,7 +34,7 @@
                 ]
             },
             "config": {
-                "googleMapsApiKey": "your-google-maps-api-key-here"
+                "googleMapsApiKey": "AIzaSyDVG5-dn0osOOm94tOvQC7V5BiGKiFgDGI"
             }
         },
         "plugins": [
@@ -54,6 +54,12 @@
                 "expo-notifications",
                 {
                     "color": "#ffffff"
+                }
+            ],
+            [
+                "react-native-maps",
+                {
+                    "googleMapsApiKey": "AIzaSyDVG5-dn0osOOm94tOvQC7V5BiGKiFgDGI"
                 }
             ]
         ],
