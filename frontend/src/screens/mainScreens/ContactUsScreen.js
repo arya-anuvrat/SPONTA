@@ -1,82 +1,144 @@
-import React from "react";
+import React, { useState } from "react";
 import {
     View,
     Text,
-    TouchableOpacity,
     StyleSheet,
-    ScrollView,
+    TextInput,
+    TouchableOpacity,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function ContactUsScreen() {
-    const navigation = useNavigation();
+export default function ContactUsScreen({ navigation }) {
+    const [message, setMessage] = useState("");
+    const [darkMode, setDarkMode] = useState(false);
+
+    React.useEffect(() => {
+        (async () => {
+            const saved = await AsyncStorage.getItem("darkMode");
+            if (saved !== null) setDarkMode(saved === "true");
+        })();
+    }, []);
+
+    const submit = () => {
+        if (!message.trim())
+            return Alert.alert("Error", "Please enter a message.");
+
+        Alert.alert("Message Sent", "We will get back to you shortly.");
+        setMessage("");
+    };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.headerRow}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Ionicons name="chevron-back" size={28} color="#111" />
-                    </TouchableOpacity>
-                    <Text style={styles.header}>Contact Us</Text>
-                    <View style={{ width: 28 }} />
-                </View>
+        <SafeAreaView
+            style={[
+                styles.container,
+                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+            ]}
+        >
+            {/* HEADER */}
+            <View style={styles.headerRow}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Ionicons
+                        name="chevron-back"
+                        size={28}
+                        color={darkMode ? "#fff" : "#000"}
+                    />
+                </TouchableOpacity>
 
-                <View style={styles.section}>
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>Email Support</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                <Text
+                    style={[
+                        styles.headerText,
+                        { color: darkMode ? "#fff" : "#000" },
+                    ]}
+                >
+                    Contact Us
+                </Text>
 
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>Report a Problem</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
+                <View style={{ width: 28 }} />
+            </View>
 
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>Give Feedback</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
+            <View style={[styles.card, darkMode && styles.cardDark]}>
+                <Text
+                    style={[
+                        styles.label,
+                        { color: darkMode ? "#ccc" : "#555" },
+                    ]}
+                >
+                    Your Message
+                </Text>
+
+                <TextInput
+                    style={[styles.input, darkMode && styles.inputDark]}
+                    multiline
+                    numberOfLines={6}
+                    value={message}
+                    onChangeText={setMessage}
+                    placeholder="Write your message here..."
+                    placeholderTextColor={darkMode ? "#777" : "#999"}
+                />
+
+                <TouchableOpacity style={styles.button} onPress={submit}>
+                    <Text style={styles.buttonText}>Send</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { paddingHorizontal: 25, paddingTop: 10 },
+    container: { flex: 1 },
 
-    headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-    header: { flex: 1, textAlign: "center", fontSize: 24, fontWeight: "800" },
-
-    section: { marginTop: 10 },
-
-    row: {
-        backgroundColor: "#fff",
-        paddingVertical: 16,
-        paddingHorizontal: 15,
-        borderRadius: 14,
+    headerRow: {
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 6,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "#eee",
     },
 
-    rowText: { fontSize: 16, fontWeight: "500", color: "#333" },
+    headerText: { fontSize: 26, fontWeight: "700" },
+
+    card: {
+        backgroundColor: "#fff",
+        marginHorizontal: 20,
+        marginTop: 20,
+        padding: 20,
+        borderRadius: 16,
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+
+    cardDark: { backgroundColor: "#1a1a1a" },
+
+    label: { fontSize: 15, fontWeight: "600", marginBottom: 10 },
+
+    input: {
+        backgroundColor: "#f4f4f4",
+        padding: 14,
+        borderRadius: 12,
+        fontSize: 16,
+        height: 150,
+        textAlignVertical: "top",
+    },
+
+    inputDark: { backgroundColor: "#2a2a2a", color: "#fff" },
+
+    button: {
+        backgroundColor: "#7b3aed",
+        paddingVertical: 14,
+        borderRadius: 12,
+        marginTop: 18,
+        alignItems: "center",
+    },
+
+    buttonText: {
+        color: "#fff",
+        fontSize: 17,
+        fontWeight: "700",
+    },
 });

@@ -1,204 +1,335 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     View,
     Text,
-    TextInput,
     StyleSheet,
+    TextInput,
     TouchableOpacity,
     ScrollView,
-    KeyboardAvoidingView,
+    ActivityIndicator,
     Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { userAPI } from "../../services/api";
+import { auth } from "../../services/firebase";
 
-export default function EditProfileScreen() {
-    const navigation = useNavigation();
+export default function EditProfileScreen({ navigation, route }) {
+    const { user } = route.params;
 
-    // Example preloaded user data
-    const [name, setName] = useState("Anuvrat Arya");
-    const [email, setEmail] = useState("anuvrat@example.com");
-    const [phone, setPhone] = useState("+1 (608) 960-5025");
+    const [darkMode, setDarkMode] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const [profile, setProfile] = useState({
+        displayName: user.displayName || "",
+        dateOfBirth: user.dateOfBirth || "",
+        college: user.college || "",
+    });
+
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
+    // Load Dark Mode
+    useEffect(() => {
+        (async () => {
+            const saved = await AsyncStorage.getItem("darkMode");
+            if (saved !== null) setDarkMode(saved === "true");
+        })();
+    }, []);
+
+    const formatDisplayDate = (isoString) => {
+        if (!isoString) return "";
+        const date = new Date(isoString);
+        return date.toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+        });
+    };
+
+    const saveChanges = async () => {
+        try {
+            setSaving(true);
+
+            const token = await auth.currentUser.getIdToken();
+
+            await userAPI.updateProfile(token, {
+                displayName: profile.displayName,
+                dateOfBirth: profile.dateOfBirth,
+                college: profile.college,
+            });
+
+            navigation.goBack();
+        } catch (e) {
+            console.log("Save Error:", e);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                style={{ flex: 1 }}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.container}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {/* HEADER */}
-                    <View style={styles.headerRow}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Ionicons
-                                name="chevron-back"
-                                size={28}
-                                color="#111"
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.header}>Edit Profile</Text>
-                        <View style={{ width: 28 }} />
-                    </View>
-
-                    {/* FORM SECTION */}
-                    <Text style={styles.sectionTitle}>Basic Information</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Full Name</Text>
-                        <TextInput
-                            value={name}
-                            onChangeText={setName}
-                            style={styles.input}
-                            placeholder="Enter name"
+        <SafeAreaView
+            style={[
+                styles.container,
+                { backgroundColor: darkMode ? "#0d0d0d" : "#f2f2f7" },
+            ]}
+        >
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {/* HEADER */}
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <Ionicons
+                            name="chevron-back"
+                            size={28}
+                            color={darkMode ? "#fff" : "#000"}
                         />
-                    </View>
+                    </TouchableOpacity>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Email Address</Text>
-                        <TextInput
-                            value={email}
-                            onChangeText={setEmail}
-                            style={styles.input}
-                            placeholder="Enter email"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Phone Number</Text>
-                        <TextInput
-                            value={phone}
-                            onChangeText={setPhone}
-                            style={styles.input}
-                            placeholder="Enter phone"
-                            keyboardType="phone-pad"
-                        />
-                    </View>
-
-                    {/* ACCOUNT SECTION */}
-                    <Text style={[styles.sectionTitle, { marginTop: 35 }]}>
-                        Account Settings
+                    <Text
+                        style={[
+                            styles.headerText,
+                            { color: darkMode ? "#fff" : "#000" },
+                        ]}
+                    >
+                        Edit Profile
                     </Text>
 
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={styles.rowText}>Change Password</Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#aaa"
-                        />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.row}>
-                        <Text style={[styles.rowText, { color: "#d9534f" }]}>
-                            Delete Account
-                        </Text>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#d9534f"
-                        />
-                    </TouchableOpacity>
-                </ScrollView>
-
-                {/* SAVE BUTTON (STICKY) */}
-                <View style={styles.saveBar}>
-                    <TouchableOpacity style={styles.saveButton}>
-                        <Text style={styles.saveText}>Save Changes</Text>
-                    </TouchableOpacity>
+                    <View style={{ width: 28 }} />
                 </View>
-            </KeyboardAvoidingView>
+
+                {/* FORM CARD */}
+                <View style={[styles.card, darkMode && styles.cardDark]}>
+                    <Text
+                        style={[
+                            styles.sectionTitle,
+                            { color: darkMode ? "#ddd" : "#666" },
+                        ]}
+                    >
+                        Personal Information
+                    </Text>
+
+                    {/* DISPLAY NAME */}
+                    <View style={styles.fieldGroup}>
+                        <Text
+                            style={[
+                                styles.label,
+                                { color: darkMode ? "#ccc" : "#555" },
+                            ]}
+                        >
+                            Display Name
+                        </Text>
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    backgroundColor: darkMode ? "#222" : "#eee",
+                                    color: darkMode ? "#fff" : "#000",
+                                },
+                            ]}
+                            value={profile.displayName}
+                            onChangeText={(t) =>
+                                setProfile({ ...profile, displayName: t })
+                            }
+                        />
+                    </View>
+
+                    {/* EMAIL - LOCKED */}
+                    <View style={styles.fieldGroup}>
+                        <Text
+                            style={[
+                                styles.label,
+                                { color: darkMode ? "#ccc" : "#555" },
+                            ]}
+                        >
+                            Email (locked)
+                        </Text>
+                        <TextInput
+                            editable={false}
+                            style={[
+                                styles.input,
+                                {
+                                    backgroundColor: darkMode ? "#333" : "#ddd",
+                                    color: darkMode ? "#999" : "#666",
+                                },
+                            ]}
+                            value={user.email}
+                        />
+                    </View>
+
+                    {/* DOB WITH DATE PICKER */}
+                    <View style={styles.fieldGroup}>
+                        <Text
+                            style={[
+                                styles.label,
+                                { color: darkMode ? "#ccc" : "#555" },
+                            ]}
+                        >
+                            Date of Birth
+                        </Text>
+
+                        <TouchableOpacity
+                            onPress={() => setShowDatePicker(true)}
+                        >
+                            <View
+                                style={[
+                                    styles.input,
+                                    {
+                                        backgroundColor: darkMode
+                                            ? "#222"
+                                            : "#eee",
+                                        justifyContent: "center",
+                                    },
+                                ]}
+                            >
+                                <Text
+                                    style={{
+                                        color: darkMode ? "#fff" : "#000",
+                                    }}
+                                >
+                                    {profile.dateOfBirth
+                                        ? formatDisplayDate(profile.dateOfBirth)
+                                        : "Select Date"}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        {showDatePicker && (
+                            <DateTimePicker
+                                value={
+                                    profile.dateOfBirth
+                                        ? new Date(profile.dateOfBirth)
+                                        : new Date()
+                                }
+                                mode="date"
+                                display="spinner"
+                                themeVariant={darkMode ? "dark" : "light"}
+                                onChange={(event, selected) => {
+                                    if (Platform.OS === "android") {
+                                        setShowDatePicker(false);
+                                    }
+                                    if (selected) {
+                                        setProfile({
+                                            ...profile,
+                                            dateOfBirth: selected
+                                                .toISOString()
+                                                .split("T")[0],
+                                        });
+                                    }
+                                }}
+                            />
+                        )}
+                    </View>
+
+                    {/* COLLEGE FIELD */}
+                    <View style={styles.fieldGroup}>
+                        <Text
+                            style={[
+                                styles.label,
+                                { color: darkMode ? "#ccc" : "#555" },
+                            ]}
+                        >
+                            College
+                        </Text>
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    backgroundColor: darkMode ? "#222" : "#eee",
+                                    color: darkMode ? "#fff" : "#000",
+                                },
+                            ]}
+                            value={profile.college}
+                            onChangeText={(t) =>
+                                setProfile({ ...profile, college: t })
+                            }
+                        />
+                    </View>
+                </View>
+
+                {/* SAVE BUTTON */}
+                <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={saveChanges}
+                    disabled={saving}
+                >
+                    {saving ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={styles.saveText}>Save Changes</Text>
+                    )}
+                </TouchableOpacity>
+
+                <View style={{ height: 40 }} />
+            </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        paddingHorizontal: 25,
-        paddingTop: 10,
-        paddingBottom: 40,
-    },
+    container: { flex: 1 },
 
     headerRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 30,
-    },
-    header: {
-        flex: 1,
-        textAlign: "center",
-        fontSize: 28,
-        fontWeight: "800",
-        color: "#111",
-    },
-
-    sectionTitle: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#777",
-        marginBottom: 12,
-        marginLeft: 2,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-
-    inputGroup: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#444",
-        marginBottom: 6,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: "#ddd",
-        backgroundColor: "#fafafa",
-        borderRadius: 14,
-        paddingHorizontal: 15,
-        paddingVertical: 14,
-        fontSize: 16,
-    },
-
-    row: {
-        backgroundColor: "#fff",
-        paddingVertical: 18,
-        paddingHorizontal: 15,
-        borderRadius: 14,
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 6,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "#eee",
-    },
-    rowText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#333",
     },
 
-    saveBar: {
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: "#eee",
-        backgroundColor: "#fff",
+    headerText: {
+        fontSize: 30,
+        fontWeight: "700",
     },
+
+    card: {
+        backgroundColor: "#fff",
+        marginHorizontal: 20,
+        marginTop: 20,
+        padding: 20,
+        borderRadius: 18,
+        shadowColor: "#000",
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+    },
+    cardDark: {
+        backgroundColor: "#1a1a1a",
+        shadowOpacity: 0,
+    },
+
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        marginBottom: 14,
+    },
+
+    fieldGroup: { marginBottom: 18 },
+
+    label: {
+        fontSize: 15,
+        fontWeight: "600",
+        marginBottom: 6,
+    },
+
+    input: {
+        padding: 14,
+        borderRadius: 12,
+        fontSize: 16,
+    },
+
     saveButton: {
         backgroundColor: "#7b3aed",
+        marginHorizontal: 20,
+        marginTop: 20,
         paddingVertical: 16,
-        borderRadius: 14,
+        borderRadius: 16,
         alignItems: "center",
     },
+
     saveText: {
         color: "#fff",
-        fontSize: 17,
+        fontSize: 18,
         fontWeight: "700",
     },
 });
